@@ -5,7 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Screen Annotator</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+  @font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  }
+
+  @font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('assets/fonts/JetBrainsMono-SemiBold.woff2') format('woff2');
+  }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -471,7 +485,7 @@ function drawPreview(e) {
       ctx.save();
       ctx.globalAlpha = tool === 'highlighter' ? 0.35 : 1;
       ctx.strokeStyle = currentColor;
-      ctx.lineWidth = tool === 'highlighter' ? 24 : currentStroke;
+      ctx.lineWidth = tool === 'highlighter' ? currentStroke * 6 : currentStroke;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -571,7 +585,7 @@ canvas.addEventListener('mouseup', (e) => {
     }
   } else if (currentTool === 'highlighter') {
     if (currentPath.length > 1) {
-      strokes.push({ type: 'highlighter', points: currentPath, color: currentColor, width: 24, alpha: 0.35 });
+      strokes.push({ type: 'highlighter', points: currentPath, color: currentColor, width: currentStroke * 6, alpha: 0.35 });
     }
   } else if (currentTool === 'rect') {
     const w = e.clientX - startX;
@@ -716,50 +730,113 @@ document.getElementById('btn-screenshot').addEventListener('click', (e) => {
   takeScreenshot();
 });
 
+function isCaptureLikelyBlank(ctx, width, height) {
+  const samplePoints = [
+    [Math.floor(width * 0.25), Math.floor(height * 0.25)],
+    [Math.floor(width * 0.50), Math.floor(height * 0.50)],
+    [Math.floor(width * 0.75), Math.floor(height * 0.75)],
+    [Math.floor(width * 0.25), Math.floor(height * 0.75)],
+    [Math.floor(width * 0.75), Math.floor(height * 0.25)],
+  ];
+  for (const [x, y] of samplePoints) {
+    const pixel = ctx.getImageData(x, y, 1, 1).data;
+    const isBlack = pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0 && pixel[3] === 255;
+    const isTransparent = pixel[3] === 0;
+    if (!isBlack && !isTransparent) return false;
+  }
+  return true;
+}
+
+function loadImage(pngData) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([pngData], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')); };
+    img.src = url;
+  });
+}
+
+function compositeAnnotations(offCtx, canvasW, canvasH) {
+  const scaleX = canvasW / window.innerWidth;
+  const scaleY = canvasH / window.innerHeight;
+  offCtx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+  for (const s of strokes) {
+    drawStrokeOn(offCtx, s);
+  }
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+async function saveOffscreenCanvas(offscreen) {
+  return new Promise((resolve) => {
+    offscreen.toBlob(async (resultBlob) => {
+      const arrayBuf = await resultBlob.arrayBuffer();
+      const saved = await window.electronAPI.saveScreenshot(new Uint8Array(arrayBuf));
+      showToast(saved ? 'screenshot saved' : 'screenshot cancelled');
+      resolve();
+    }, 'image/png');
+  });
+}
+
 async function takeScreenshot() {
   if (isElectron) {
     try {
-      const desktopPng = await window.electronAPI.captureDesktop();
-      if (!desktopPng) {
+      const result = await window.electronAPI.captureDesktop();
+      if (!result) {
         showToast('screenshot failed');
         return;
       }
 
-      // Composite desktop + annotations
-      const blob = new Blob([desktopPng], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-      const bgImg = new Image();
-      bgImg.onerror = () => {
-        URL.revokeObjectURL(url);
-        showToast('screenshot failed — check screen recording permission');
-      };
-      bgImg.onload = async () => {
+      // Multi-display: result is { captures, unionBounds }
+      if (result.captures) {
+        const images = await Promise.all(
+          result.captures.map(async (c) => ({
+            img: await loadImage(c.png),
+            bounds: c.bounds,
+          }))
+        );
+
+        const ub = result.unionBounds;
         const offscreen = document.createElement('canvas');
-        offscreen.width = bgImg.width;
-        offscreen.height = bgImg.height;
+        offscreen.width = ub.width;
+        offscreen.height = ub.height;
         const offCtx = offscreen.getContext('2d');
 
-        // Draw desktop
-        offCtx.drawImage(bgImg, 0, 0);
-        URL.revokeObjectURL(url);
-
-        // Draw annotations scaled to match
-        const scaleX = bgImg.width / window.innerWidth;
-        const scaleY = bgImg.height / window.innerHeight;
-        offCtx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-        for (const s of strokes) {
-          drawStrokeOn(offCtx, s);
+        for (const { img, bounds } of images) {
+          offCtx.drawImage(img, bounds.x - ub.x, bounds.y - ub.y, bounds.width, bounds.height);
         }
-        offCtx.setTransform(1, 0, 0, 1, 0, 0);
 
-        // Convert to PNG buffer and save
-        offscreen.toBlob(async (resultBlob) => {
-          const arrayBuf = await resultBlob.arrayBuffer();
-          const saved = await window.electronAPI.saveScreenshot(new Uint8Array(arrayBuf));
-          showToast(saved ? 'screenshot saved' : 'screenshot cancelled');
-        }, 'image/png');
-      };
-      bgImg.src = url;
+        if (isCaptureLikelyBlank(offCtx, offscreen.width, offscreen.height)) {
+          showToast('grant Screen Recording permission in System Settings');
+          return;
+        }
+
+        compositeAnnotations(offCtx, offscreen.width, offscreen.height);
+        await saveOffscreenCanvas(offscreen);
+        return;
+      }
+
+      // Single display: result is a PNG buffer
+      const bgImg = await loadImage(result).catch(() => null);
+      if (!bgImg) {
+        showToast('screenshot failed — check screen recording permission');
+        return;
+      }
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = bgImg.width;
+      offscreen.height = bgImg.height;
+      const offCtx = offscreen.getContext('2d');
+      offCtx.drawImage(bgImg, 0, 0);
+
+      if (isCaptureLikelyBlank(offCtx, offscreen.width, offscreen.height)) {
+        showToast('grant Screen Recording permission in System Settings');
+        return;
+      }
+
+      compositeAnnotations(offCtx, offscreen.width, offscreen.height);
+      await saveOffscreenCanvas(offscreen);
     } catch (err) {
       showToast('screenshot error');
     }
@@ -921,7 +998,13 @@ document.addEventListener('mouseup', () => {
 toolbar.addEventListener('mousemove', (e) => {
   if (!isDraggingToolbar) e.stopPropagation();
 });
-toolbar.addEventListener('mouseup', (e) => e.stopPropagation());
+toolbar.addEventListener('mouseup', (e) => {
+  if (isDraggingToolbar) {
+    isDraggingToolbar = false;
+    toolbar.classList.remove('dragging');
+  }
+  e.stopPropagation();
+});
 
 // ── Electron IPC listeners ──
 if (isElectron) {
