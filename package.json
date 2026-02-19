@@ -1,0 +1,13 @@
+{
+  "name": "annotation-overlay",
+  "version": "1.0.0",
+  "description": "System-wide screen annotation overlay",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
