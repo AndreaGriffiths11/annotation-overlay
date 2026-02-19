@@ -32,6 +32,7 @@ app.whenReady().then(() => {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    fullscreenable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -47,16 +48,23 @@ app.whenReady().then(() => {
 
   win.loadFile('overlay.html');
 
+  win.webContents.on('did-finish-load', () => {
+    console.log('Overlay loaded — press Cmd+Shift+D to draw');
+    win.showInactive();
+  });
+
   // Global shortcut: Cmd+Shift+D to toggle drawing mode
-  globalShortcut.register('CommandOrControl+Shift+D', () => {
+  const registered = globalShortcut.register('CommandOrControl+Shift+D', () => {
     toggleDrawingMode();
   });
+  console.log('Global shortcut registered:', registered);
 
   createTray();
 });
 
 function toggleDrawingMode() {
   drawingMode = !drawingMode;
+  console.log('Drawing mode:', drawingMode);
   setPassThrough(!drawingMode);
   win.webContents.send('mode-changed', drawingMode);
   updateTrayMenu();
@@ -65,43 +73,34 @@ function toggleDrawingMode() {
 function setPassThrough(passThrough) {
   if (passThrough) {
     win.setIgnoreMouseEvents(true);
-    win.setFocusable(false);
   } else {
     win.setIgnoreMouseEvents(false);
-    win.setFocusable(true);
     win.focus();
   }
 }
 
 function createTray() {
-  // Use a simple dot icon for the tray
-  const iconSize = 22;
-  const canvas = { width: iconSize, height: iconSize };
-  const img = nativeImage.createEmpty();
-
-  // Create a small icon programmatically
   tray = new Tray(createTrayIcon());
+  tray.on('click', () => toggleDrawingMode());
   updateTrayMenu();
 }
 
 function createTrayIcon() {
-  // 22x22 PNG with a circle drawn as annotation indicator
-  const size = 32;
+  const size = 22;
   const buf = Buffer.alloc(size * size * 4, 0);
   const cx = size / 2;
   const cy = size / 2;
-  const r = 10;
+  const r = 8;
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
       const idx = (y * size + x) * 4;
       if (dist <= r) {
-        // Red circle
-        buf[idx] = 255;     // R
-        buf[idx + 1] = 107;  // G
-        buf[idx + 2] = 107;  // B
-        buf[idx + 3] = 255; // A
+        buf[idx] = 255;
+        buf[idx + 1] = 107;
+        buf[idx + 2] = 107;
+        buf[idx + 3] = 255;
       }
     }
   }
