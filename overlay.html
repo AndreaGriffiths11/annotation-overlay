@@ -1025,6 +1025,21 @@ toolbar.addEventListener('lostpointercapture', () => {
 
 // ── Electron IPC listeners ──
 if (isElectron) {
+  window.electronAPI.onDisplayInfo(({ primary, windowBounds }) => {
+    // Position toolbar centered on the primary display
+    const offsetX = primary.x - windowBounds.x;
+    const centerX = offsetX + primary.width / 2;
+    const offsetY = primary.y - windowBounds.y;
+    toolbar.style.left = centerX + 'px';
+    toolbar.style.top = (offsetY + 16) + 'px';
+    toolbar.style.transform = 'translateX(-50%)';
+    // Also position the mode indicator and pill on the primary display
+    modeIndicator.style.left = centerX + 'px';
+    modeIndicator.style.top = (offsetY + 68) + 'px';
+    pill.style.left = centerX + 'px';
+    pill.style.top = (offsetY + 12) + 'px';
+  });
+
   window.electronAPI.onModeChanged((drawing) => {
     if (drawing) {
       canvas.classList.remove('pass-through');

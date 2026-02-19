@@ -69,6 +69,9 @@ app.whenReady().then(() => {
     console.log('Overlay loaded — displays:', JSON.stringify(screen.getAllDisplays().map(d => d.bounds)));
     console.log('Window bounds:', JSON.stringify(win.getBounds()));
     console.log('Drawing mode:', drawingMode);
+    // Tell the renderer where the primary display is relative to the window
+    const primary = screen.getPrimaryDisplay().bounds;
+    win.webContents.send('display-info', { primary, windowBounds: bounds });
     win.showInactive();
   });
 
