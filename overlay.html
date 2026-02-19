@@ -284,23 +284,7 @@
     opacity: 1;
   }
 
-  /* Text input for text tool */
-  .text-input {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px dashed rgba(255, 255, 255, 0.4);
-    border-radius: 4px;
-    color: #ff6b6b;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 18px;
-    font-weight: 600;
-    padding: 4px 8px;
-    outline: none;
-    z-index: 999;
-    min-width: 100px;
-    user-select: text;
-    -webkit-user-select: text;
-  }
+
 </style>
 </head>
 <body>
@@ -322,11 +306,6 @@
   <!-- Arrow -->
   <button id="tool-arrow" title="Arrow (A)">
     <svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="12 5 19 5 19 12"/></svg>
-  </button>
-
-  <!-- Text -->
-  <button id="tool-text" title="Text (T)">
-    <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
   </button>
 
   <!-- Highlighter -->
@@ -396,14 +375,13 @@ const COLORS = [
 ];
 const STROKE_WIDTHS = [2, 4, 6, 10];
 
-let currentTool = 'pen';       // pen | rect | arrow | text | highlighter | eraser
+let currentTool = 'pen';       // pen | rect | arrow | highlighter | eraser
 let currentColor = COLORS[0];
 let currentStroke = 4;
 let strokes = [];              // completed strokes (for undo)
 let isDrawing = false;
 let startX, startY;
 let currentPath = [];
-let activeTextInput = null;
 
 const isElectron = typeof window.electronAPI !== 'undefined';
 
@@ -452,11 +430,6 @@ function drawStroke(s) {
     ctx.stroke();
   } else if (s.type === 'arrow') {
     drawArrow(ctx, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.alpha || 1);
-  } else if (s.type === 'text') {
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = s.color;
-    ctx.font = '600 18px "JetBrains Mono", monospace';
-    ctx.fillText(s.text, s.x, s.y);
   }
   ctx.restore();
 }
@@ -543,14 +516,6 @@ function hitTestStroke(s, x, y) {
     }
   } else if (s.type === 'arrow') {
     if (distToSegment(x, y, s.x1, s.y1, s.x2, s.y2) < threshold) return true;
-  } else if (s.type === 'text') {
-    ctx.font = '600 18px "JetBrains Mono", monospace';
-    const metrics = ctx.measureText(s.text);
-    const tx = s.x;
-    const ty = s.y - 18;
-    const tw = metrics.width;
-    const th = 24;
-    if (x >= tx - 4 && x <= tx + tw + 4 && y >= ty - 4 && y <= ty + th + 4) return true;
   }
   return false;
 }
@@ -580,13 +545,6 @@ canvas.addEventListener('mousedown', (e) => {
         return;
       }
     }
-    return;
-  }
-
-  if (currentTool === 'text') {
-    e.preventDefault();
-    commitTextInput();
-    createTextInput(e.clientX, e.clientY);
     return;
   }
 
@@ -634,84 +592,16 @@ canvas.addEventListener('mouseup', (e) => {
   updateUndoBadge();
 });
 
-// ── Text tool ──
-function createTextInput(x, y) {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'text-input';
-  input.style.left = x + 'px';
-  input.style.top = (y - 14) + 'px';
-  input.style.color = currentColor;
-  input.dataset.x = x;
-  input.dataset.y = y;
-  document.body.appendChild(input);
-  activeTextInput = input;
-
-  // Delay focus so the mousedown event fully resolves first
-  setTimeout(() => {
-    input.focus();
-    if (document.activeElement !== input) {
-      input.click();
-      input.focus();
-    }
-  }, 50);
-
-  input.addEventListener('keydown', (e) => {
-    e.stopPropagation();
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitTextInput();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      removeTextInput();
-    }
-  });
-
-  input.addEventListener('blur', () => {
-    // Slight delay so click-to-place-new works
-    setTimeout(() => {
-      if (activeTextInput === input) commitTextInput();
-    }, 100);
-  });
-}
-
-function commitTextInput() {
-  if (!activeTextInput) return;
-  const text = activeTextInput.value.trim();
-  if (text) {
-    strokes.push({
-      type: 'text',
-      text,
-      x: parseFloat(activeTextInput.dataset.x),
-      y: parseFloat(activeTextInput.dataset.y),
-      color: activeTextInput.style.color,
-      width: 0,
-    });
-    redraw();
-    updateUndoBadge();
-  }
-  removeTextInput();
-}
-
-function removeTextInput() {
-  if (activeTextInput) {
-    activeTextInput.remove();
-    activeTextInput = null;
-  }
-}
-
 // ── Toolbar: Tools ──
 const toolBtns = {
   pen: document.getElementById('tool-pen'),
   rect: document.getElementById('tool-rect'),
   arrow: document.getElementById('tool-arrow'),
-  text: document.getElementById('tool-text'),
   highlighter: document.getElementById('tool-highlighter'),
   eraser: document.getElementById('tool-eraser'),
 };
 
 function setTool(tool) {
-  commitTextInput();
   currentTool = tool;
   Object.values(toolBtns).forEach(b => b.classList.remove('active'));
   toolBtns[tool].classList.add('active');
@@ -720,8 +610,6 @@ function setTool(tool) {
   // Update cursor
   if (tool === 'eraser') {
     canvas.style.cursor = 'pointer';
-  } else if (tool === 'text') {
-    canvas.style.cursor = 'text';
   } else {
     canvas.style.cursor = 'crosshair';
   }
@@ -730,7 +618,6 @@ function setTool(tool) {
 toolBtns.pen.addEventListener('click', (e) => { e.stopPropagation(); setTool('pen'); });
 toolBtns.rect.addEventListener('click', (e) => { e.stopPropagation(); setTool('rect'); });
 toolBtns.arrow.addEventListener('click', (e) => { e.stopPropagation(); setTool('arrow'); });
-toolBtns.text.addEventListener('click', (e) => { e.stopPropagation(); setTool('text'); });
 toolBtns.highlighter.addEventListener('click', (e) => { e.stopPropagation(); setTool('highlighter'); });
 toolBtns.eraser.addEventListener('click', (e) => { e.stopPropagation(); setTool('eraser'); });
 
@@ -907,11 +794,6 @@ function drawStrokeOn(c, s) {
     c.stroke();
   } else if (s.type === 'arrow') {
     drawArrow(c, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.alpha || 1);
-  } else if (s.type === 'text') {
-    c.globalAlpha = 1;
-    c.fillStyle = s.color;
-    c.font = '600 18px "JetBrains Mono", monospace';
-    c.fillText(s.text, s.x, s.y);
   }
   c.restore();
 }
@@ -942,30 +824,11 @@ document.addEventListener('click', closeMenus);
 
 // ── Keyboard shortcuts ──
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
-
-  // Fallback: if text input exists but didn't receive focus, handle keys manually
-  if (activeTextInput) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === 'Enter') {
-      commitTextInput();
-    } else if (e.key === 'Escape') {
-      removeTextInput();
-    } else if (e.key === 'Backspace') {
-      activeTextInput.value = activeTextInput.value.slice(0, -1);
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-      activeTextInput.value += e.key;
-    }
-    return;
-  }
-
   const key = e.key.toLowerCase();
 
   if (key === 'p') setTool('pen');
   else if (key === 'r') setTool('rect');
   else if (key === 'a') setTool('arrow');
-  else if (key === 't') setTool('text');
   else if (key === 'g') setTool('highlighter');
   else if (key === 'e') setTool('eraser');
   else if (key === 'h') {
@@ -1055,7 +918,9 @@ document.addEventListener('mouseup', () => {
   }
 });
 
-toolbar.addEventListener('mousemove', (e) => e.stopPropagation());
+toolbar.addEventListener('mousemove', (e) => {
+  if (!isDraggingToolbar) e.stopPropagation();
+});
 toolbar.addEventListener('mouseup', (e) => e.stopPropagation());
 
 // ── Electron IPC listeners ──
@@ -1071,7 +936,6 @@ if (isElectron) {
       toolbar.classList.add('hidden');
       pill.classList.remove('visible');
       modeIndicator.classList.remove('visible');
-      commitTextInput();
       closeMenus();
     }
   });
