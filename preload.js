@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exitDrawingMode: () => ipcRenderer.send('exit-drawing-mode'),
   captureDesktop: () => ipcRenderer.invoke('capture-desktop'),
   saveScreenshot: (pngBuffer) => ipcRenderer.invoke('save-screenshot', pngBuffer),
+  quitApp: () => ipcRenderer.send('quit-app'),
 });

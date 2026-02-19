@@ -166,6 +166,11 @@ ipcMain.on('exit-drawing-mode', () => {
   }
 });
 
+// IPC: quit app from renderer
+ipcMain.on('quit-app', () => {
+  app.quit();
+});
+
 // IPC: capture desktop screenshot
 ipcMain.handle('capture-desktop', async () => {
   // Hide overlay so the capture is a clean desktop (no annotations or toolbar)

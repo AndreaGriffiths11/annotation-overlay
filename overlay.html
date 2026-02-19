@@ -369,6 +369,13 @@
   <button id="btn-minimize" title="Hide toolbar (H)">
     <svg viewBox="0 0 24 24"><polyline points="4 14 12 6 20 14"/></svg>
   </button>
+
+  <div class="sep"></div>
+
+  <!-- Quit -->
+  <button id="btn-quit" title="Quit (Q)">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </button>
 </div>
 
 <!-- Mode indicator -->
@@ -886,6 +893,11 @@ document.getElementById('btn-minimize').addEventListener('click', (e) => {
   pill.classList.add('visible');
 });
 
+document.getElementById('btn-quit').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isElectron) window.electronAPI.quitApp();
+});
+
 pill.addEventListener('click', () => {
   toolbar.classList.remove('hidden');
   pill.classList.remove('visible');
@@ -939,6 +951,10 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     takeScreenshot();
   }
+  else if (key === 'q' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (isElectron) window.electronAPI.quitApp();
+  }
   else if (key === 'escape') {
     if (isElectron) {
       window.electronAPI.exitDrawingMode();
@@ -971,11 +987,15 @@ function unlockToolbarPosition() {
   toolbar.style.transform = 'none';
 }
 
-toolbar.addEventListener('mousedown', (e) => {
-  if (e.target.closest('button')) {
-    e.stopPropagation();
-    return;
-  }
+function endDrag() {
+  isDraggingToolbar = false;
+  toolbar.classList.remove('dragging');
+}
+
+// Use Pointer Capture so all move/up events route to the toolbar
+// regardless of where the pointer is — no propagation issues
+toolbar.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button')) return;
   e.preventDefault();
   e.stopPropagation();
   unlockToolbarPosition();
@@ -983,25 +1003,24 @@ toolbar.addEventListener('mousedown', (e) => {
   dragOffsetX = e.clientX - toolbar.getBoundingClientRect().left;
   dragOffsetY = e.clientY - toolbar.getBoundingClientRect().top;
   toolbar.classList.add('dragging');
+  toolbar.setPointerCapture(e.pointerId);
 });
 
-// All drag movement and release handled at document level with capture phase
-// so no intermediate element can swallow the events
-document.addEventListener('mousemove', (e) => {
-  if (!isDraggingToolbar) return;
+toolbar.addEventListener('pointermove', (e) => {
+  if (!isDraggingToolbar) {
+    e.stopPropagation();
+    return;
+  }
   toolbar.style.left = (e.clientX - dragOffsetX) + 'px';
   toolbar.style.top = (e.clientY - dragOffsetY) + 'px';
-}, true);
+});
 
-document.addEventListener('mouseup', () => {
-  if (!isDraggingToolbar) return;
-  isDraggingToolbar = false;
-  toolbar.classList.remove('dragging');
-}, true);
+toolbar.addEventListener('pointerup', () => {
+  if (isDraggingToolbar) endDrag();
+});
 
-// Prevent canvas drawing while hovering toolbar (but not during drag)
-toolbar.addEventListener('mousemove', (e) => {
-  if (!isDraggingToolbar) e.stopPropagation();
+toolbar.addEventListener('lostpointercapture', () => {
+  if (isDraggingToolbar) endDrag();
 });
 
 // ── Electron IPC listeners ──
