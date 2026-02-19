@@ -1,4 +1,5 @@
-# Annotation Overlay
+<img width="400" height="400" alt="Annotation Overlay logo" src="https://github.com/user-attachments/assets/ea022d82-5e14-4983-93ed-9b7bb607d2ea" />
+
 
 A system-wide screen annotation tool built with Electron. Draw over any app on your screen during presentations and screen sharing.
 
