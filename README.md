@@ -1,9 +1,5 @@
 # Annotation Overlay
 
-<p align="center">
-  <img width="200" alt="Annotation Overlay logo" src="https://github.com/user-attachments/assets/ea022d82-5e14-4983-93ed-9b7bb607d2ea" />
-</p>
-
 Draw over anything on your screen. Works during presentations, live demos, and screen sharing without switching windows or apps.
 
 ## Install
