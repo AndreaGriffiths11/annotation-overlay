@@ -8,6 +8,6 @@
     "build": "electron-builder"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^35.7.5"
   }
 }
