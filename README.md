@@ -38,7 +38,6 @@ Toggle with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on Windows and Linux.
 | Pen | `P` | Freehand drawing |
 | Rectangle | `R` | Drag to draw a rectangle |
 | Arrow | `A` | Drag to draw an arrow |
-| Text | `T` | Click to place text, Enter to commit |
 | Highlighter | `G` | Semi-transparent wide stroke |
 | Eraser | `E` | Click a stroke to delete it |
 
@@ -54,6 +53,11 @@ Toggle with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on Windows and Linux.
 | Clear all | `X` |
 | Screenshot | `Cmd+S` |
 | Hide/show toolbar | `H` |
+| Quit | `Cmd+Q` |
+
+## Permissions
+
+On macOS, the app needs **Screen Recording** permission to capture screenshots. If you haven't granted it, the app will prompt you when you try to save a screenshot. You can manage this in **System Settings > Privacy & Security > Screen Recording**.
 
 ## Tray Icon
 
