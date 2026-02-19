@@ -30,20 +30,21 @@ function getAllDisplaysBounds() {
 }
 
 app.whenReady().then(() => {
-  const { x, y, width, height } = getAllDisplaysBounds();
+  const bounds = getAllDisplaysBounds();
 
   win = new BrowserWindow({
-    x,
-    y,
-    width,
-    height,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     frame: false,
     transparent: true,
     hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    resizable: false,
+    resizable: true,
     fullscreenable: false,
+    enableLargerThanScreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -60,7 +61,14 @@ app.whenReady().then(() => {
   win.loadFile('overlay.html');
 
   win.webContents.on('did-finish-load', () => {
-    console.log('Overlay loaded — press Cmd+Shift+D to draw');
+    // Force bounds after load — macOS can clamp transparent windows at creation
+    win.setBounds(bounds);
+    win.setResizable(false);
+    // Re-apply pass-through since setBounds can reset mouse event state
+    setPassThrough(!drawingMode);
+    console.log('Overlay loaded — displays:', JSON.stringify(screen.getAllDisplays().map(d => d.bounds)));
+    console.log('Window bounds:', JSON.stringify(win.getBounds()));
+    console.log('Drawing mode:', drawingMode);
     win.showInactive();
   });
 
@@ -73,12 +81,14 @@ app.whenReady().then(() => {
   createTray();
 
   // Resize overlay when displays are added or removed
-  screen.on('display-added', () => {
+  function updateWindowBounds() {
+    win.setResizable(true);
     win.setBounds(getAllDisplaysBounds());
-  });
-  screen.on('display-removed', () => {
-    win.setBounds(getAllDisplaysBounds());
-  });
+    win.setResizable(false);
+    setPassThrough(!drawingMode);
+  }
+  screen.on('display-added', updateWindowBounds);
+  screen.on('display-removed', updateWindowBounds);
 });
 
 function toggleDrawingMode() {
