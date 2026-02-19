@@ -972,8 +972,12 @@ function unlockToolbarPosition() {
 }
 
 toolbar.addEventListener('mousedown', (e) => {
+  if (e.target.closest('button')) {
+    e.stopPropagation();
+    return;
+  }
+  e.preventDefault();
   e.stopPropagation();
-  if (e.target.closest('button')) return;
   unlockToolbarPosition();
   isDraggingToolbar = true;
   dragOffsetX = e.clientX - toolbar.getBoundingClientRect().left;
@@ -981,29 +985,23 @@ toolbar.addEventListener('mousedown', (e) => {
   toolbar.classList.add('dragging');
 });
 
+// All drag movement and release handled at document level with capture phase
+// so no intermediate element can swallow the events
 document.addEventListener('mousemove', (e) => {
   if (!isDraggingToolbar) return;
-  e.stopPropagation();
   toolbar.style.left = (e.clientX - dragOffsetX) + 'px';
   toolbar.style.top = (e.clientY - dragOffsetY) + 'px';
-});
+}, true);
 
 document.addEventListener('mouseup', () => {
-  if (isDraggingToolbar) {
-    isDraggingToolbar = false;
-    toolbar.classList.remove('dragging');
-  }
-});
+  if (!isDraggingToolbar) return;
+  isDraggingToolbar = false;
+  toolbar.classList.remove('dragging');
+}, true);
 
+// Prevent canvas drawing while hovering toolbar (but not during drag)
 toolbar.addEventListener('mousemove', (e) => {
   if (!isDraggingToolbar) e.stopPropagation();
-});
-toolbar.addEventListener('mouseup', (e) => {
-  if (isDraggingToolbar) {
-    isDraggingToolbar = false;
-    toolbar.classList.remove('dragging');
-  }
-  e.stopPropagation();
 });
 
 // ── Electron IPC listeners ──
