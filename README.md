@@ -1,47 +1,52 @@
-<img width="400" height="400" alt="Annotation Overlay logo" src="https://github.com/user-attachments/assets/ea022d82-5e14-4983-93ed-9b7bb607d2ea" />
+# Annotation Overlay
 
+<p align="center">
+  <img width="200" alt="Annotation Overlay logo" src="https://github.com/user-attachments/assets/ea022d82-5e14-4983-93ed-9b7bb607d2ea" />
+</p>
 
-A system-wide screen annotation tool built with Electron. Draw over any app on your screen during presentations and screen sharing.
+Draw over anything on your screen. Works during presentations, live demos, and screen sharing without switching windows or apps.
 
-## Install (One-Click)
+## Install
 
-You do **not** need terminal commands to use this app.
+No terminal needed.
 
-1. Open this repository on GitHub and go to the **Releases** page.
+1. Go to the [Releases](../../releases) page.
 2. Download the installer for your OS:
    - macOS: `.dmg`
    - Windows: `.exe`
-   - Linux: `.AppImage` (or `.deb` when available)
-3. Open the downloaded installer and finish installation.
-4. Launch **Annotation Overlay** from Applications / Start Menu like any other app.
+   - Linux: `.AppImage`
+3. Open the installer and follow the prompts.
+4. Launch **Annotation Overlay** from Applications or your Start Menu.
 
-## Quick Start
+## For Developers
 
 ```bash
 npm install
 npm start
 ```
 
-Press `Cmd+Shift+D` (or `Ctrl+Shift+D` on Windows/Linux) to toggle drawing mode on and off from any app.
+## How It Works
 
-## Usage
+The overlay sits on top of every window on your screen.
 
-When drawing mode is **off**, clicks pass through to your apps underneath — annotations stay visible but don't block anything.
+When drawing mode is **off**, clicks pass through to whatever is underneath. Your annotations stay visible but stay out of the way.
 
-When drawing mode is **on**, the toolbar appears and you can draw freely over everything on screen.
+When drawing mode is **on**, the toolbar appears and you can draw freely.
 
-### Tools
+Toggle with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on Windows and Linux.
 
-| Tool | Shortcut | Description |
+## Tools
+
+| Tool | Shortcut | What It Does |
 |---|---|---|
 | Pen | `P` | Freehand drawing |
 | Rectangle | `R` | Drag to draw a rectangle |
 | Arrow | `A` | Drag to draw an arrow |
 | Text | `T` | Click to place text, Enter to commit |
 | Highlighter | `G` | Semi-transparent wide stroke |
-| Eraser | `E` | Click on a stroke to delete it |
+| Eraser | `E` | Click a stroke to delete it |
 
-### Other Shortcuts
+## Shortcuts
 
 | Action | Shortcut |
 |---|---|
@@ -54,27 +59,27 @@ When drawing mode is **on**, the toolbar appears and you can draw freely over ev
 | Screenshot | `Cmd+S` |
 | Hide/show toolbar | `H` |
 
-### Tray Icon
+## Tray Icon
 
-Single-click the red dot in the menu bar to toggle drawing mode on or off instantly.
+Single-click the icon in the menu bar to toggle drawing mode on or off.
 
-Right-click the red dot in the menu bar for quick access to toggle, clear, screenshot, and quit.
+Right-click for quick access to toggle, clear, screenshot, and quit.
 
-### Screenshot
+## Screenshots
 
-`Cmd+S` captures the desktop with your annotations composited on top and saves it as a PNG.
+`Cmd+S` captures your full desktop with annotations on top and saves it as a PNG.
 
 ## Browser Fallback
 
-You can still open `overlay.html` directly in a browser for a basic annotation experience without the system-wide overlay.
+Open `overlay.html` directly in a browser for a basic annotation experience without the system-wide overlay.
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-## Publishing Releases (Maintainers)
+## Publishing a Release
 
-When you push a version tag (for example `v1.0.1`), GitHub Actions will build installers and attach them to a GitHub Release.
+Push a version tag and GitHub Actions builds installers for Mac, Windows, and Linux and attaches them to a GitHub Release automatically.
 
 ```bash
 git tag v1.0.1
@@ -83,4 +88,4 @@ git push origin v1.0.1
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
