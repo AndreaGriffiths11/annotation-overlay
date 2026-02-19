@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Screen Annotator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    overflow: hidden;
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(22, 22, 26, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .toolbar.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  .toolbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #a0a0a8;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+  }
+
+  .toolbar button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e0e0e4;
+  }
+
+  .toolbar button.active {
+    background: rgba(255, 80, 80, 0.18);
+    color: #ff6b6b;
+  }
+
+  .toolbar button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+  }
+
+  /* Color picker */
+  .color-btn {
+    position: relative;
+  }
+
+  .color-btn .swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+  }
+
+  .color-menu {
+    position: absolute;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(22, 22, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    flex-wrap: wrap;
+    width: 120px;
+    justify-content: center;
+  }
+
+  .color-menu.open { display: flex; }
+
+  .color-menu .swatch-option {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+
+  .color-menu .swatch-option:hover {
+    transform: scale(1.2);
+  }
+
+  .color-menu .swatch-option.selected {
+    border-color: white;
+  }
+
+  /* Stroke width */
+  .stroke-menu {
+    position: absolute;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(22, 22, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    align-items: center;
+  }
+
+  .stroke-menu.open { display: flex; }
+
+  .stroke-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 28px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .stroke-option:hover { background: rgba(255, 255, 255, 0.08); }
+  .stroke-option.selected { background: rgba(255, 80, 80, 0.18); }
+
+  .stroke-option .dot {
+    border-radius: 50%;
+    background: #e0e0e4;
+  }
+
+  /* Minimize pill */
+  .minimize-pill {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 16px;
+    background: rgba(22, 22, 26, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    color: #a0a0a8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    z-index: 1001;
+    display: none;
+    transition: color 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .minimize-pill:hover { color: #e0e0e4; }
+  .minimize-pill.visible { display: block; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 8px 18px;
+    background: rgba(22, 22, 26, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    color: #a0a0a8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1002;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Undo badge */
+  .undo-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 14px;
+    height: 14px;
+    background: #ff6b6b;
+    color: #16161a;
+    font-size: 9px;
+    font-weight: 600;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    line-height: 1;
+    padding: 0 3px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- Toolbar -->
+<div class="toolbar" id="toolbar">
+  <!-- Pen -->
+  <button id="tool-pen" class="active" title="Pen (P)">
+    <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="13" r="2"/></svg>
+  </button>
+
+  <!-- Rectangle -->
+  <button id="tool-rect" title="Rectangle (R)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+  </button>
+
+  <!-- Arrow -->
+  <button id="tool-arrow" title="Arrow (A)">
+    <svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="12 5 19 5 19 12"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Color -->
+  <button id="btn-color" class="color-btn" title="Color (C)">
+    <div class="swatch" id="current-swatch"></div>
+    <div class="color-menu" id="color-menu"></div>
+  </button>
+
+  <!-- Stroke width -->
+  <button id="btn-stroke" title="Stroke width (S)">
+    <svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-width="3"/></svg>
+    <div class="stroke-menu" id="stroke-menu"></div>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Undo -->
+  <button id="btn-undo" title="Undo (Ctrl+Z)">
+    <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+  </button>
+
+  <!-- Clear -->
+  <button id="btn-clear" title="Clear all (X)">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Minimize -->
+  <button id="btn-minimize" title="Hide toolbar (H)">
+    <svg viewBox="0 0 24 24"><polyline points="4 14 12 6 20 14"/></svg>
+  </button>
+</div>
+
+<!-- Minimized pill to restore toolbar -->
+<div class="minimize-pill" id="minimize-pill">click to annotate</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+const COLORS = [
+  '#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c',
+  '#4dabf7', '#9775fa', '#f783ac', '#e0e0e4',
+  '#16161a'
+];
+const STROKE_WIDTHS = [2, 4, 6, 10];
+
+let currentTool = 'pen';       // pen | rect | arrow
+let currentColor = COLORS[0];
+let currentStroke = 4;
+let strokes = [];              // completed strokes (for undo)
+let isDrawing = false;
+let startX, startY;
+let currentPath = [];
+
+// ── Canvas setup ──
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redraw();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Drawing ──
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const s of strokes) {
+    drawStroke(s);
+  }
+}
+
+function drawStroke(s) {
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = s.width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (s.type === 'pen' && s.points.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(s.points[0][0], s.points[0][1]);
+    for (let i = 1; i < s.points.length; i++) {
+      ctx.lineTo(s.points[i][0], s.points[i][1]);
+    }
+    ctx.stroke();
+  } else if (s.type === 'rect') {
+    ctx.beginPath();
+    ctx.rect(s.x, s.y, s.w, s.h);
+    ctx.stroke();
+  } else if (s.type === 'arrow') {
+    drawArrow(ctx, s.x1, s.y1, s.x2, s.y2, s.color, s.width);
+  }
+}
+
+function drawArrow(c, x1, y1, x2, y2, color, width) {
+  const headLen = Math.max(width * 4, 16);
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+
+  c.strokeStyle = color;
+  c.lineWidth = width;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+
+  // Line
+  c.beginPath();
+  c.moveTo(x1, y1);
+  c.lineTo(x2, y2);
+  c.stroke();
+
+  // Arrowhead
+  c.beginPath();
+  c.moveTo(x2, y2);
+  c.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+  c.moveTo(x2, y2);
+  c.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+  c.stroke();
+}
+
+// ── Preview (live feedback while dragging) ──
+function drawPreview(e) {
+  redraw();
+  const mx = e.clientX;
+  const my = e.clientY;
+
+  if (currentTool === 'pen') {
+    if (currentPath.length > 1) {
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = currentStroke;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(currentPath[0][0], currentPath[0][1]);
+      for (let i = 1; i < currentPath.length; i++) {
+        ctx.lineTo(currentPath[i][0], currentPath[i][1]);
+      }
+      ctx.stroke();
+    }
+  } else if (currentTool === 'rect') {
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentStroke;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.rect(startX, startY, mx - startX, my - startY);
+    ctx.stroke();
+  } else if (currentTool === 'arrow') {
+    drawArrow(ctx, startX, startY, mx, my, currentColor, currentStroke);
+  }
+}
+
+// ── Mouse events ──
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  isDrawing = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  currentPath = [[startX, startY]];
+  closeMenus();
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDrawing) return;
+  currentPath.push([e.clientX, e.clientY]);
+  drawPreview(e);
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!isDrawing) return;
+  isDrawing = false;
+
+  if (currentTool === 'pen') {
+    if (currentPath.length > 1) {
+      strokes.push({ type: 'pen', points: currentPath, color: currentColor, width: currentStroke });
+    }
+  } else if (currentTool === 'rect') {
+    const w = e.clientX - startX;
+    const h = e.clientY - startY;
+    if (Math.abs(w) > 2 || Math.abs(h) > 2) {
+      strokes.push({ type: 'rect', x: startX, y: startY, w, h, color: currentColor, width: currentStroke });
+    }
+  } else if (currentTool === 'arrow') {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      strokes.push({ type: 'arrow', x1: startX, y1: startY, x2: e.clientX, y2: e.clientY, color: currentColor, width: currentStroke });
+    }
+  }
+
+  currentPath = [];
+  redraw();
+  updateUndoBadge();
+});
+
+// ── Toolbar: Tools ──
+const toolBtns = {
+  pen: document.getElementById('tool-pen'),
+  rect: document.getElementById('tool-rect'),
+  arrow: document.getElementById('tool-arrow'),
+};
+
+function setTool(tool) {
+  currentTool = tool;
+  Object.values(toolBtns).forEach(b => b.classList.remove('active'));
+  toolBtns[tool].classList.add('active');
+  closeMenus();
+}
+
+toolBtns.pen.addEventListener('click', (e) => { e.stopPropagation(); setTool('pen'); });
+toolBtns.rect.addEventListener('click', (e) => { e.stopPropagation(); setTool('rect'); });
+toolBtns.arrow.addEventListener('click', (e) => { e.stopPropagation(); setTool('arrow'); });
+
+// ── Toolbar: Colors ──
+const colorMenu = document.getElementById('color-menu');
+const swatchEl = document.getElementById('current-swatch');
+swatchEl.style.background = currentColor;
+
+COLORS.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'swatch-option' + (c === currentColor ? ' selected' : '');
+  el.style.background = c;
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentColor = c;
+    swatchEl.style.background = c;
+    colorMenu.querySelectorAll('.swatch-option').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    colorMenu.classList.remove('open');
+  });
+  colorMenu.appendChild(el);
+});
+
+document.getElementById('btn-color').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('stroke-menu').classList.remove('open');
+  colorMenu.classList.toggle('open');
+});
+
+// ── Toolbar: Stroke width ──
+const strokeMenu = document.getElementById('stroke-menu');
+
+STROKE_WIDTHS.forEach(w => {
+  const el = document.createElement('div');
+  el.className = 'stroke-option' + (w === currentStroke ? ' selected' : '');
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dot.style.width = w + 'px';
+  dot.style.height = w + 'px';
+  el.appendChild(dot);
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentStroke = w;
+    strokeMenu.querySelectorAll('.stroke-option').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    strokeMenu.classList.remove('open');
+  });
+  strokeMenu.appendChild(el);
+});
+
+document.getElementById('btn-stroke').addEventListener('click', (e) => {
+  e.stopPropagation();
+  colorMenu.classList.remove('open');
+  strokeMenu.classList.toggle('open');
+});
+
+// ── Toolbar: Undo ──
+const undoBtn = document.getElementById('btn-undo');
+
+function updateUndoBadge() {
+  const existing = undoBtn.querySelector('.undo-count');
+  if (existing) existing.remove();
+  if (strokes.length > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'undo-count';
+    badge.textContent = strokes.length;
+    undoBtn.appendChild(badge);
+  }
+}
+
+undoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (strokes.length > 0) {
+    strokes.pop();
+    redraw();
+    updateUndoBadge();
+  }
+});
+
+// ── Toolbar: Clear ──
+document.getElementById('btn-clear').addEventListener('click', (e) => {
+  e.stopPropagation();
+  strokes = [];
+  redraw();
+  updateUndoBadge();
+  showToast('canvas cleared');
+});
+
+// ── Toolbar: Minimize / Restore ──
+const toolbar = document.getElementById('toolbar');
+const pill = document.getElementById('minimize-pill');
+
+document.getElementById('btn-minimize').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toolbar.classList.add('hidden');
+  pill.classList.add('visible');
+});
+
+pill.addEventListener('click', () => {
+  toolbar.classList.remove('hidden');
+  pill.classList.remove('visible');
+});
+
+// ── Close menus on outside click ──
+function closeMenus() {
+  colorMenu.classList.remove('open');
+  strokeMenu.classList.remove('open');
+}
+
+document.addEventListener('click', closeMenus);
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', (e) => {
+  // Don't fire when typing in inputs
+  if (e.target.tagName === 'INPUT') return;
+
+  const key = e.key.toLowerCase();
+
+  if (key === 'p') setTool('pen');
+  else if (key === 'r') setTool('rect');
+  else if (key === 'a') setTool('arrow');
+  else if (key === 'h') {
+    if (toolbar.classList.contains('hidden')) {
+      toolbar.classList.remove('hidden');
+      pill.classList.remove('visible');
+    } else {
+      toolbar.classList.add('hidden');
+      pill.classList.add('visible');
+    }
+  }
+  else if (key === 'x') {
+    strokes = [];
+    redraw();
+    updateUndoBadge();
+    showToast('canvas cleared');
+  }
+  else if (key === 'z' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (strokes.length > 0) {
+      strokes.pop();
+      redraw();
+      updateUndoBadge();
+    }
+  }
+  else if (key === 'c' && !e.ctrlKey && !e.metaKey) {
+    document.getElementById('btn-color').click();
+  }
+  else if (key === 's' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    document.getElementById('btn-stroke').click();
+  }
+});
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// ── Prevent toolbar dragging from drawing ──
+toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
+toolbar.addEventListener('mousemove', (e) => e.stopPropagation());
+toolbar.addEventListener('mouseup', (e) => e.stopPropagation());
+
+</script>
+</body>
+</html>
