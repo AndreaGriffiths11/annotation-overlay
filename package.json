@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "System-wide screen annotation overlay",
   "main": "main.js",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder"

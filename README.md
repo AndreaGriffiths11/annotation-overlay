@@ -52,3 +52,11 @@ Right-click the red dot in the menu bar for quick access to toggle, clear, scree
 ## Browser Fallback
 
 You can still open `overlay.html` directly in a browser for a basic annotation experience without the system-wide overlay.
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
