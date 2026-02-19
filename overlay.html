@@ -47,13 +47,18 @@
     border-radius: 14px;
     z-index: 1000;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease;
+    cursor: grab;
+  }
+
+  .toolbar.dragging {
+    cursor: grabbing;
+    transition: none;
   }
 
   .toolbar.hidden {
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-50%) translateY(-20px);
   }
 
   .toolbar button {
@@ -282,7 +287,7 @@
   /* Text input for text tool */
   .text-input {
     position: fixed;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.25);
     border: 1px dashed rgba(255, 255, 255, 0.4);
     border-radius: 4px;
     color: #ff6b6b;
@@ -293,6 +298,8 @@
     outline: none;
     z-index: 999;
     min-width: 100px;
+    user-select: text;
+    -webkit-user-select: text;
   }
 </style>
 </head>
@@ -577,6 +584,7 @@ canvas.addEventListener('mousedown', (e) => {
   }
 
   if (currentTool === 'text') {
+    e.preventDefault();
     commitTextInput();
     createTextInput(e.clientX, e.clientY);
     return;
@@ -637,10 +645,13 @@ function createTextInput(x, y) {
   input.dataset.x = x;
   input.dataset.y = y;
   document.body.appendChild(input);
-  input.focus();
   activeTextInput = input;
 
+  // Delay focus so the mousedown event fully resolves first
+  requestAnimationFrame(() => input.focus());
+
   input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
     if (e.key === 'Enter') {
       e.preventDefault();
       commitTextInput();
@@ -979,8 +990,45 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
 }
 
-// ── Prevent toolbar dragging from drawing ──
-toolbar.addEventListener('mousedown', (e) => e.stopPropagation());
+// ── Draggable toolbar ──
+let isDraggingToolbar = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let toolbarUnlocked = false;
+
+function unlockToolbarPosition() {
+  if (toolbarUnlocked) return;
+  toolbarUnlocked = true;
+  const rect = toolbar.getBoundingClientRect();
+  toolbar.style.left = rect.left + 'px';
+  toolbar.style.top = rect.top + 'px';
+  toolbar.style.transform = 'none';
+}
+
+toolbar.addEventListener('mousedown', (e) => {
+  e.stopPropagation();
+  if (e.target.closest('button')) return;
+  unlockToolbarPosition();
+  isDraggingToolbar = true;
+  dragOffsetX = e.clientX - toolbar.getBoundingClientRect().left;
+  dragOffsetY = e.clientY - toolbar.getBoundingClientRect().top;
+  toolbar.classList.add('dragging');
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isDraggingToolbar) return;
+  e.stopPropagation();
+  toolbar.style.left = (e.clientX - dragOffsetX) + 'px';
+  toolbar.style.top = (e.clientY - dragOffsetY) + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isDraggingToolbar) {
+    isDraggingToolbar = false;
+    toolbar.classList.remove('dragging');
+  }
+});
+
 toolbar.addEventListener('mousemove', (e) => e.stopPropagation());
 toolbar.addEventListener('mouseup', (e) => e.stopPropagation());
 
