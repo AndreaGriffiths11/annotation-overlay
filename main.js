@@ -149,25 +149,40 @@ ipcMain.on('exit-drawing-mode', () => {
 
 // IPC: capture desktop screenshot
 ipcMain.handle('capture-desktop', async () => {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: screen.getPrimaryDisplay().size,
-  });
+  // Hide overlay so the capture is a clean desktop (no annotations or toolbar)
+  win.setOpacity(0);
+  await new Promise(resolve => setTimeout(resolve, 200));
 
-  if (sources.length === 0) return null;
-  return sources[0].thumbnail.toPNG();
+  try {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: screen.getPrimaryDisplay().size,
+    });
+
+    if (sources.length === 0) return null;
+    return sources[0].thumbnail.toPNG();
+  } finally {
+    win.setOpacity(1);
+  }
 });
 
 // IPC: save screenshot file
 ipcMain.handle('save-screenshot', async (_event, pngBuffer) => {
-  const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    defaultPath: `annotation-${Date.now()}.png`,
-    filters: [{ name: 'PNG Image', extensions: ['png'] }],
-  });
+  // Lower the overlay so the save dialog is visible above it
+  win.setAlwaysOnTop(true, 'floating');
 
-  if (canceled || !filePath) return false;
-  fs.writeFileSync(filePath, Buffer.from(pngBuffer));
-  return true;
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: `annotation-${Date.now()}.png`,
+      filters: [{ name: 'PNG Image', extensions: ['png'] }],
+    });
+
+    if (canceled || !filePath) return false;
+    fs.writeFileSync(filePath, Buffer.from(pngBuffer));
+    return true;
+  } finally {
+    win.setAlwaysOnTop(true, 'screen-saver');
+  }
 });
 
 app.on('will-quit', () => {
