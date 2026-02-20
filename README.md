@@ -18,6 +18,17 @@ Go to the [Releases](../../releases) page and download the installer for your pl
 
 Open the installer and follow the prompts. Launch **Annotation Overlay** from Applications or your Start Menu.
 
+## macOS Installation
+
+First Launch: macOS may show a security warning. 
+
+To open the app:
+	1.	Right-click the app icon
+	2.	Select “Open”
+	3.	Click “Open” in the dialog
+
+Alternative: System Settings → Privacy & Security → “Open Anyway”
+
 ## Update
 
 To update, download the latest installer from the [Releases](../../releases/latest) page and install it over the existing version.
