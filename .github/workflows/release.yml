@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Build installers
-        run: npm run build
+        run: npm run build -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
