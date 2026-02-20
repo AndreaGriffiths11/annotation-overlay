@@ -12,9 +12,9 @@ Go to the [Releases](../../releases) page and download the installer for your pl
 
 | Platform | File | Size |
 |---|---|---|
-| macOS | [Annotation.Overlay-1.0.0-arm64.dmg](../../releases/download/v1.0.0/Annotation.Overlay-1.0.0-arm64.dmg) | 105 MB |
-| Windows | [Annotation.Overlay.Setup.1.0.0.exe](../../releases/download/v1.0.0/Annotation.Overlay.Setup.1.0.0.exe) | 81 MB |
-| Linux | [Annotation.Overlay-1.0.0.AppImage](../../releases/download/v1.0.0/Annotation.Overlay-1.0.0.AppImage) | 109 MB |
+| macOS | [Annotation.Overlay-1.2.0-arm64.dmg](../../releases/download/v1.2.0/Annotation.Overlay-1.2.0-arm64.dmg) | 105 MB |
+| Windows | [Annotation.Overlay.Setup.1.2.0.exe](../../releases/download/v1.2.0/Annotation.Overlay.Setup.1.2.0.exe) | 81 MB |
+| Linux | [Annotation.Overlay-1.2.0.AppImage](../../releases/download/v1.2.0/Annotation.Overlay-1.2.0.AppImage) | 109 MB |
 
 Open the installer and follow the prompts. Launch **Annotation Overlay** from Applications or your Start Menu.
 
@@ -33,7 +33,7 @@ npm start
 
 The overlay sits on top of every window on your screen.
 
-When you launch the app, a **"click to annotate"** button appears in the center of your screen. Click it to enter drawing mode — no keyboard shortcut needed.
+When you launch the app, the **app icon** appears in the center of your screen. Click it to enter drawing mode — a hint label shows on first launch so you know what to do.
 
 When drawing mode is **on**, the toolbar appears and you can draw freely. When drawing mode is **off**, clicks pass through to whatever is underneath. Your annotations stay visible but stay out of the way.
 

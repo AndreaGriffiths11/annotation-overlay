@@ -15,4 +15,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   captureDesktop: () => ipcRenderer.invoke('capture-desktop'),
   saveScreenshot: (pngBuffer) => ipcRenderer.invoke('save-screenshot', pngBuffer),
   quitApp: () => ipcRenderer.send('quit-app'),
+  setIgnoreMouseEvents: (ignore, forward) => ipcRenderer.send('set-ignore-mouse-events', ignore, forward),
 });

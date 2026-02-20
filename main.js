@@ -105,7 +105,7 @@ function toggleDrawingMode() {
 
 function setPassThrough(passThrough) {
   if (passThrough) {
-    win.setIgnoreMouseEvents(true);
+    win.setIgnoreMouseEvents(true, { forward: true });
   } else {
     win.setIgnoreMouseEvents(false);
     win.focus();
@@ -169,6 +169,12 @@ function updateTrayMenu() {
   tray.setToolTip('Annotation Overlay');
   tray.setContextMenu(menu);
 }
+
+// IPC: dynamically toggle mouse event pass-through (used to make pill clickable)
+ipcMain.on('set-ignore-mouse-events', (_e, ignore, forward) => {
+  if (drawingMode) return; // drawing mode always captures events
+  win.setIgnoreMouseEvents(ignore, forward ? { forward: true } : undefined);
+});
 
 // IPC: exit drawing mode from renderer (Escape key)
 ipcMain.on('exit-drawing-mode', () => {
