@@ -29,11 +29,11 @@ npm start
 
 The overlay sits on top of every window on your screen.
 
-When drawing mode is **off**, clicks pass through to whatever is underneath. Your annotations stay visible but stay out of the way.
+When you launch the app, a **"click to annotate"** button appears in the center of your screen. Click it to enter drawing mode — no keyboard shortcut needed.
 
-When drawing mode is **on**, the toolbar appears and you can draw freely.
+When drawing mode is **on**, the toolbar appears and you can draw freely. When drawing mode is **off**, clicks pass through to whatever is underneath. Your annotations stay visible but stay out of the way.
 
-Toggle with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on Windows and Linux.
+You can also toggle drawing mode with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on Windows and Linux.
 
 ## Tools
 

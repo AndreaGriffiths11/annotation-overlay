@@ -12,6 +12,7 @@
   "build": {
     "appId": "dev.annotation.overlay",
     "productName": "Annotation Overlay",
+    "compression": "maximum",
     "directories": {
       "buildResources": "assets"
     },

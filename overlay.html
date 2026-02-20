@@ -207,27 +207,34 @@
   }
 
   /* Minimize pill */
+  @keyframes pill-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(99, 102, 241, 0.4); }
+    50% { box-shadow: 0 0 18px rgba(99, 102, 241, 0.7); }
+  }
+
   .minimize-pill {
     position: fixed;
-    top: 12px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    padding: 6px 16px;
-    background: rgba(22, 22, 26, 0.85);
+    transform: translate(-50%, -50%);
+    padding: 24px 56px;
+    background: rgba(99, 102, 241, 0.9);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-    color: #a0a0a8;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 40px;
+    color: #fff;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 28px;
+    font-weight: 600;
     cursor: pointer;
     z-index: 1001;
     display: none;
-    transition: color 0.15s;
+    transition: background 0.15s, box-shadow 0.15s;
     letter-spacing: 0.03em;
+    animation: pill-glow 2s ease-in-out 3;
   }
 
-  .minimize-pill:hover { color: #e0e0e4; }
+  .minimize-pill:hover { background: rgba(99, 102, 241, 1); }
   .minimize-pill.visible { display: block; }
 
   /* Toast */
@@ -1068,9 +1075,10 @@ if (isElectron) {
     takeScreenshot();
   });
 
-  // Start in pass-through mode (Electron will send mode-changed on toggle)
+  // Start in pass-through mode with pill visible so users know how to begin
   canvas.classList.add('pass-through');
   toolbar.classList.add('hidden');
+  pill.classList.add('visible');
 }
 
 </script>
