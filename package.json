@@ -1,0 +1,29 @@
+{
+  "name": "annotation-overlay",
+  "version": "1.0.0",
+  "description": "System-wide screen annotation overlay",
+  "main": "main.js",
+  "author": "Annotation Overlay Contributors",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "dev.annotation.overlay",
+    "productName": "Annotation Overlay",
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "icon": "assets/icon.icns"
+    }
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1"
+  },
+  "overrides": {
+    "minimatch": ">=10.2.1"
+  }
+}

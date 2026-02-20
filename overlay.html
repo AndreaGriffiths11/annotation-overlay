@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src file:; script-src 'unsafe-inline'; img-src file: blob:;">
+<title>Screen Annotator</title>
+<style>
+  @font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  }
+
+  @font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('assets/fonts/JetBrainsMono-SemiBold.woff2') format('woff2');
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    overflow: hidden;
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
+  }
+
+  canvas.pass-through {
+    pointer-events: none;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(22, 22, 26, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transition: opacity 0.2s ease;
+    cursor: grab;
+  }
+
+  .toolbar.dragging {
+    cursor: grabbing;
+    transition: none;
+  }
+
+  .toolbar.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .toolbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #a0a0a8;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.15s, color 0.15s;
+    position: relative;
+  }
+
+  .toolbar button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e0e0e4;
+  }
+
+  .toolbar button.active {
+    background: rgba(255, 80, 80, 0.18);
+    color: #ff6b6b;
+  }
+
+  .toolbar button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+  }
+
+  /* Color picker */
+  .color-btn {
+    position: relative;
+  }
+
+  .color-btn .swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
+  }
+
+  .color-menu {
+    position: absolute;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(22, 22, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    flex-wrap: wrap;
+    width: 120px;
+    justify-content: center;
+  }
+
+  .color-menu.open { display: flex; }
+
+  .color-menu .swatch-option {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+
+  .color-menu .swatch-option:hover {
+    transform: scale(1.2);
+  }
+
+  .color-menu .swatch-option.selected {
+    border-color: white;
+  }
+
+  /* Stroke width */
+  .stroke-menu {
+    position: absolute;
+    top: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(22, 22, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    align-items: center;
+  }
+
+  .stroke-menu.open { display: flex; }
+
+  .stroke-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 28px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .stroke-option:hover { background: rgba(255, 255, 255, 0.08); }
+  .stroke-option.selected { background: rgba(255, 80, 80, 0.18); }
+
+  .stroke-option .dot {
+    border-radius: 50%;
+    background: #e0e0e4;
+  }
+
+  /* Minimize pill */
+  .minimize-pill {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 16px;
+    background: rgba(22, 22, 26, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    color: #a0a0a8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    z-index: 1001;
+    display: none;
+    transition: color 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .minimize-pill:hover { color: #e0e0e4; }
+  .minimize-pill.visible { display: block; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 8px 18px;
+    background: rgba(22, 22, 26, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    color: #a0a0a8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 1002;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Undo badge */
+  .undo-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 14px;
+    height: 14px;
+    background: #ff6b6b;
+    color: #16161a;
+    font-size: 9px;
+    font-weight: 600;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    line-height: 1;
+    padding: 0 3px;
+  }
+
+  /* Mode indicator */
+  .mode-indicator {
+    position: fixed;
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 14px;
+    background: rgba(255, 80, 80, 0.15);
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 8px;
+    color: #ff6b6b;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .mode-indicator.visible {
+    opacity: 1;
+  }
+
+
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- Toolbar -->
+<div class="toolbar" id="toolbar">
+  <!-- Pen -->
+  <button id="tool-pen" class="active" title="Pen (P)">
+    <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="13" r="2"/></svg>
+  </button>
+
+  <!-- Rectangle -->
+  <button id="tool-rect" title="Rectangle (R)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+  </button>
+
+  <!-- Arrow -->
+  <button id="tool-arrow" title="Arrow (A)">
+    <svg viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="12 5 19 5 19 12"/></svg>
+  </button>
+
+  <!-- Highlighter -->
+  <button id="tool-highlighter" title="Highlighter (G)">
+    <svg viewBox="0 0 24 24"><path d="M9 11l-6 6v3h9l3-3"/><path d="M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
+  </button>
+
+  <!-- Eraser -->
+  <button id="tool-eraser" title="Eraser (E)">
+    <svg viewBox="0 0 24 24"><path d="M20 20H7L3 16l9-9 8 8-4 4"/><path d="M6.5 13.5l5-5"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Color -->
+  <button id="btn-color" class="color-btn" title="Color (C)">
+    <div class="swatch" id="current-swatch"></div>
+    <div class="color-menu" id="color-menu"></div>
+  </button>
+
+  <!-- Stroke width -->
+  <button id="btn-stroke" title="Stroke width (W)">
+    <svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-width="3"/></svg>
+    <div class="stroke-menu" id="stroke-menu"></div>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Undo -->
+  <button id="btn-undo" title="Undo (Ctrl+Z)">
+    <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+  </button>
+
+  <!-- Clear -->
+  <button id="btn-clear" title="Clear all (X)">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Screenshot -->
+  <button id="btn-screenshot" title="Screenshot (Cmd+S)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h2"/><path d="M19 9h2"/></svg>
+  </button>
+
+  <!-- Minimize -->
+  <button id="btn-minimize" title="Hide toolbar (H)">
+    <svg viewBox="0 0 24 24"><polyline points="4 14 12 6 20 14"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Quit -->
+  <button id="btn-quit" title="Quit (Q)">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </button>
+</div>
+
+<!-- Mode indicator -->
+<div class="mode-indicator" id="mode-indicator">DRAWING MODE</div>
+
+<!-- Minimized pill to restore toolbar -->
+<div class="minimize-pill" id="minimize-pill">click to annotate</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+const COLORS = [
+  '#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c',
+  '#4dabf7', '#9775fa', '#f783ac', '#e0e0e4',
+  '#16161a'
+];
+const STROKE_WIDTHS = [2, 4, 6, 10];
+
+let currentTool = 'pen';       // pen | rect | arrow | highlighter | eraser
+let currentColor = COLORS[0];
+let currentStroke = 4;
+let strokes = [];              // completed strokes (for undo)
+let isDrawing = false;
+let startX, startY;
+let currentPath = [];
+
+const isElectron = typeof window.electronAPI !== 'undefined';
+
+// ── Canvas setup ──
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  redraw();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Drawing ──
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const s of strokes) {
+    drawStroke(s);
+  }
+}
+
+function drawStroke(s) {
+  ctx.save();
+  ctx.globalAlpha = s.alpha || 1;
+  ctx.strokeStyle = s.color;
+  ctx.lineWidth = s.width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if ((s.type === 'pen' || s.type === 'highlighter') && s.points.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(s.points[0][0], s.points[0][1]);
+    for (let i = 1; i < s.points.length; i++) {
+      ctx.lineTo(s.points[i][0], s.points[i][1]);
+    }
+    ctx.stroke();
+  } else if (s.type === 'rect') {
+    ctx.beginPath();
+    ctx.rect(s.x, s.y, s.w, s.h);
+    ctx.stroke();
+  } else if (s.type === 'arrow') {
+    drawArrow(ctx, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.alpha || 1);
+  }
+  ctx.restore();
+}
+
+function drawArrow(c, x1, y1, x2, y2, color, width, alpha) {
+  const headLen = Math.max(width * 4, 16);
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+
+  c.save();
+  c.globalAlpha = alpha || 1;
+  c.strokeStyle = color;
+  c.lineWidth = width;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+
+  c.beginPath();
+  c.moveTo(x1, y1);
+  c.lineTo(x2, y2);
+  c.stroke();
+
+  c.beginPath();
+  c.moveTo(x2, y2);
+  c.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+  c.moveTo(x2, y2);
+  c.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+  c.stroke();
+  c.restore();
+}
+
+// ── Preview (live feedback while dragging) ──
+function drawPreview(e) {
+  redraw();
+  const mx = e.clientX;
+  const my = e.clientY;
+  const tool = currentTool;
+
+  if (tool === 'pen' || tool === 'highlighter') {
+    if (currentPath.length > 1) {
+      ctx.save();
+      ctx.globalAlpha = tool === 'highlighter' ? 0.35 : 1;
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = tool === 'highlighter' ? currentStroke * 6 : currentStroke;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(currentPath[0][0], currentPath[0][1]);
+      for (let i = 1; i < currentPath.length; i++) {
+        ctx.lineTo(currentPath[i][0], currentPath[i][1]);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  } else if (tool === 'rect') {
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentStroke;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.rect(startX, startY, mx - startX, my - startY);
+    ctx.stroke();
+  } else if (tool === 'arrow') {
+    drawArrow(ctx, startX, startY, mx, my, currentColor, currentStroke, 1);
+  }
+}
+
+// ── Hit-test for eraser ──
+function hitTestStroke(s, x, y) {
+  const threshold = Math.max(s.width, 8) + 4;
+
+  if ((s.type === 'pen' || s.type === 'highlighter') && s.points.length > 1) {
+    for (let i = 1; i < s.points.length; i++) {
+      if (distToSegment(x, y, s.points[i - 1][0], s.points[i - 1][1], s.points[i][0], s.points[i][1]) < threshold) {
+        return true;
+      }
+    }
+  } else if (s.type === 'rect') {
+    const edges = [
+      [s.x, s.y, s.x + s.w, s.y],
+      [s.x + s.w, s.y, s.x + s.w, s.y + s.h],
+      [s.x + s.w, s.y + s.h, s.x, s.y + s.h],
+      [s.x, s.y + s.h, s.x, s.y],
+    ];
+    for (const [x1, y1, x2, y2] of edges) {
+      if (distToSegment(x, y, x1, y1, x2, y2) < threshold) return true;
+    }
+  } else if (s.type === 'arrow') {
+    if (distToSegment(x, y, s.x1, s.y1, s.x2, s.y2) < threshold) return true;
+  }
+  return false;
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+// ── Mouse events ──
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+
+  if (currentTool === 'eraser') {
+    // Hit-test from topmost stroke
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      if (hitTestStroke(strokes[i], e.clientX, e.clientY)) {
+        strokes.splice(i, 1);
+        redraw();
+        updateUndoBadge();
+        showToast('stroke erased');
+        return;
+      }
+    }
+    return;
+  }
+
+  isDrawing = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  currentPath = [[startX, startY]];
+  closeMenus();
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDrawing) return;
+  currentPath.push([e.clientX, e.clientY]);
+  drawPreview(e);
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!isDrawing) return;
+  isDrawing = false;
+
+  if (currentTool === 'pen') {
+    if (currentPath.length > 1) {
+      strokes.push({ type: 'pen', points: currentPath, color: currentColor, width: currentStroke });
+    }
+  } else if (currentTool === 'highlighter') {
+    if (currentPath.length > 1) {
+      strokes.push({ type: 'highlighter', points: currentPath, color: currentColor, width: currentStroke * 6, alpha: 0.35 });
+    }
+  } else if (currentTool === 'rect') {
+    const w = e.clientX - startX;
+    const h = e.clientY - startY;
+    if (Math.abs(w) > 2 || Math.abs(h) > 2) {
+      strokes.push({ type: 'rect', x: startX, y: startY, w, h, color: currentColor, width: currentStroke });
+    }
+  } else if (currentTool === 'arrow') {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      strokes.push({ type: 'arrow', x1: startX, y1: startY, x2: e.clientX, y2: e.clientY, color: currentColor, width: currentStroke });
+    }
+  }
+
+  currentPath = [];
+  redraw();
+  updateUndoBadge();
+});
+
+// ── Toolbar: Tools ──
+const toolBtns = {
+  pen: document.getElementById('tool-pen'),
+  rect: document.getElementById('tool-rect'),
+  arrow: document.getElementById('tool-arrow'),
+  highlighter: document.getElementById('tool-highlighter'),
+  eraser: document.getElementById('tool-eraser'),
+};
+
+function setTool(tool) {
+  currentTool = tool;
+  Object.values(toolBtns).forEach(b => b.classList.remove('active'));
+  toolBtns[tool].classList.add('active');
+  closeMenus();
+
+  // Update cursor
+  if (tool === 'eraser') {
+    canvas.style.cursor = 'pointer';
+  } else {
+    canvas.style.cursor = 'crosshair';
+  }
+}
+
+toolBtns.pen.addEventListener('click', (e) => { e.stopPropagation(); setTool('pen'); });
+toolBtns.rect.addEventListener('click', (e) => { e.stopPropagation(); setTool('rect'); });
+toolBtns.arrow.addEventListener('click', (e) => { e.stopPropagation(); setTool('arrow'); });
+toolBtns.highlighter.addEventListener('click', (e) => { e.stopPropagation(); setTool('highlighter'); });
+toolBtns.eraser.addEventListener('click', (e) => { e.stopPropagation(); setTool('eraser'); });
+
+// ── Toolbar: Colors ──
+const colorMenu = document.getElementById('color-menu');
+const swatchEl = document.getElementById('current-swatch');
+swatchEl.style.background = currentColor;
+
+COLORS.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'swatch-option' + (c === currentColor ? ' selected' : '');
+  el.style.background = c;
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentColor = c;
+    swatchEl.style.background = c;
+    colorMenu.querySelectorAll('.swatch-option').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    colorMenu.classList.remove('open');
+  });
+  colorMenu.appendChild(el);
+});
+
+document.getElementById('btn-color').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('stroke-menu').classList.remove('open');
+  colorMenu.classList.toggle('open');
+});
+
+// ── Toolbar: Stroke width ──
+const strokeMenu = document.getElementById('stroke-menu');
+
+STROKE_WIDTHS.forEach(w => {
+  const el = document.createElement('div');
+  el.className = 'stroke-option' + (w === currentStroke ? ' selected' : '');
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dot.style.width = w + 'px';
+  dot.style.height = w + 'px';
+  el.appendChild(dot);
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentStroke = w;
+    strokeMenu.querySelectorAll('.stroke-option').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    strokeMenu.classList.remove('open');
+  });
+  strokeMenu.appendChild(el);
+});
+
+document.getElementById('btn-stroke').addEventListener('click', (e) => {
+  e.stopPropagation();
+  colorMenu.classList.remove('open');
+  strokeMenu.classList.toggle('open');
+});
+
+// ── Toolbar: Undo ──
+const undoBtn = document.getElementById('btn-undo');
+
+function updateUndoBadge() {
+  const existing = undoBtn.querySelector('.undo-count');
+  if (existing) existing.remove();
+  if (strokes.length > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'undo-count';
+    badge.textContent = strokes.length;
+    undoBtn.appendChild(badge);
+  }
+}
+
+undoBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (strokes.length > 0) {
+    strokes.pop();
+    redraw();
+    updateUndoBadge();
+  }
+});
+
+// ── Toolbar: Clear ──
+document.getElementById('btn-clear').addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearAll();
+});
+
+function clearAll() {
+  strokes = [];
+  redraw();
+  updateUndoBadge();
+  showToast('canvas cleared');
+}
+
+// ── Toolbar: Screenshot ──
+document.getElementById('btn-screenshot').addEventListener('click', (e) => {
+  e.stopPropagation();
+  takeScreenshot();
+});
+
+function isCaptureLikelyBlank(ctx, width, height) {
+  const samplePoints = [
+    [Math.floor(width * 0.25), Math.floor(height * 0.25)],
+    [Math.floor(width * 0.50), Math.floor(height * 0.50)],
+    [Math.floor(width * 0.75), Math.floor(height * 0.75)],
+    [Math.floor(width * 0.25), Math.floor(height * 0.75)],
+    [Math.floor(width * 0.75), Math.floor(height * 0.25)],
+  ];
+  for (const [x, y] of samplePoints) {
+    const pixel = ctx.getImageData(x, y, 1, 1).data;
+    const isBlack = pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0 && pixel[3] === 255;
+    const isTransparent = pixel[3] === 0;
+    if (!isBlack && !isTransparent) return false;
+  }
+  return true;
+}
+
+function loadImage(pngData) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([pngData], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')); };
+    img.src = url;
+  });
+}
+
+function compositeAnnotations(offCtx, canvasW, canvasH) {
+  const scaleX = canvasW / window.innerWidth;
+  const scaleY = canvasH / window.innerHeight;
+  offCtx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+  for (const s of strokes) {
+    drawStrokeOn(offCtx, s);
+  }
+  offCtx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+async function saveOffscreenCanvas(offscreen) {
+  return new Promise((resolve) => {
+    offscreen.toBlob(async (resultBlob) => {
+      const arrayBuf = await resultBlob.arrayBuffer();
+      const saved = await window.electronAPI.saveScreenshot(new Uint8Array(arrayBuf));
+      showToast(saved ? 'screenshot saved' : 'screenshot cancelled');
+      resolve();
+    }, 'image/png');
+  });
+}
+
+async function takeScreenshot() {
+  if (isElectron) {
+    try {
+      const result = await window.electronAPI.captureDesktop();
+      if (!result) {
+        showToast('screenshot failed');
+        return;
+      }
+
+      // Multi-display: result is { captures, unionBounds }
+      if (result.captures) {
+        const images = await Promise.all(
+          result.captures.map(async (c) => ({
+            img: await loadImage(c.png),
+            bounds: c.bounds,
+          }))
+        );
+
+        const ub = result.unionBounds;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = ub.width;
+        offscreen.height = ub.height;
+        const offCtx = offscreen.getContext('2d');
+
+        for (const { img, bounds } of images) {
+          offCtx.drawImage(img, bounds.x - ub.x, bounds.y - ub.y, bounds.width, bounds.height);
+        }
+
+        if (isCaptureLikelyBlank(offCtx, offscreen.width, offscreen.height)) {
+          showToast('grant Screen Recording permission in System Settings');
+          return;
+        }
+
+        compositeAnnotations(offCtx, offscreen.width, offscreen.height);
+        await saveOffscreenCanvas(offscreen);
+        return;
+      }
+
+      // Single display: result is a PNG buffer
+      const bgImg = await loadImage(result).catch(() => null);
+      if (!bgImg) {
+        showToast('screenshot failed — check screen recording permission');
+        return;
+      }
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = bgImg.width;
+      offscreen.height = bgImg.height;
+      const offCtx = offscreen.getContext('2d');
+      offCtx.drawImage(bgImg, 0, 0);
+
+      if (isCaptureLikelyBlank(offCtx, offscreen.width, offscreen.height)) {
+        showToast('grant Screen Recording permission in System Settings');
+        return;
+      }
+
+      compositeAnnotations(offCtx, offscreen.width, offscreen.height);
+      await saveOffscreenCanvas(offscreen);
+    } catch (err) {
+      showToast('screenshot error');
+    }
+  } else {
+    // Browser fallback: save just the annotations canvas
+    const link = document.createElement('a');
+    link.download = `annotation-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('screenshot saved');
+  }
+}
+
+function drawStrokeOn(c, s) {
+  c.save();
+  c.globalAlpha = s.alpha || 1;
+  c.strokeStyle = s.color;
+  c.lineWidth = s.width;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+
+  if ((s.type === 'pen' || s.type === 'highlighter') && s.points.length > 1) {
+    c.beginPath();
+    c.moveTo(s.points[0][0], s.points[0][1]);
+    for (let i = 1; i < s.points.length; i++) {
+      c.lineTo(s.points[i][0], s.points[i][1]);
+    }
+    c.stroke();
+  } else if (s.type === 'rect') {
+    c.beginPath();
+    c.rect(s.x, s.y, s.w, s.h);
+    c.stroke();
+  } else if (s.type === 'arrow') {
+    drawArrow(c, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.alpha || 1);
+  }
+  c.restore();
+}
+
+// ── Toolbar: Minimize / Restore ──
+const toolbar = document.getElementById('toolbar');
+const pill = document.getElementById('minimize-pill');
+const modeIndicator = document.getElementById('mode-indicator');
+
+document.getElementById('btn-minimize').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toolbar.classList.add('hidden');
+  pill.classList.add('visible');
+});
+
+document.getElementById('btn-quit').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isElectron) window.electronAPI.quitApp();
+});
+
+pill.addEventListener('click', () => {
+  if (isElectron) {
+    window.electronAPI.enterDrawingMode();
+  } else {
+    toolbar.classList.remove('hidden');
+    pill.classList.remove('visible');
+  }
+});
+
+// ── Close menus on outside click ──
+function closeMenus() {
+  colorMenu.classList.remove('open');
+  strokeMenu.classList.remove('open');
+}
+
+document.addEventListener('click', closeMenus);
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+
+  if (key === 'p') setTool('pen');
+  else if (key === 'r') setTool('rect');
+  else if (key === 'a') setTool('arrow');
+  else if (key === 'g') setTool('highlighter');
+  else if (key === 'e') setTool('eraser');
+  else if (key === 'h') {
+    if (toolbar.classList.contains('hidden')) {
+      toolbar.classList.remove('hidden');
+      pill.classList.remove('visible');
+    } else {
+      toolbar.classList.add('hidden');
+      pill.classList.add('visible');
+    }
+  }
+  else if (key === 'x') {
+    clearAll();
+  }
+  else if (key === 'z' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (strokes.length > 0) {
+      strokes.pop();
+      redraw();
+      updateUndoBadge();
+    }
+  }
+  else if (key === 'c' && !e.ctrlKey && !e.metaKey) {
+    document.getElementById('btn-color').click();
+  }
+  else if (key === 'w' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    document.getElementById('btn-stroke').click();
+  }
+  else if (key === 's' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    takeScreenshot();
+  }
+  else if (key === 'q' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (isElectron) window.electronAPI.quitApp();
+  }
+  else if (key === 'escape') {
+    if (isElectron) {
+      window.electronAPI.exitDrawingMode();
+    }
+  }
+});
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+// ── Draggable toolbar ──
+let isDraggingToolbar = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let toolbarUnlocked = false;
+
+function unlockToolbarPosition() {
+  if (toolbarUnlocked) return;
+  toolbarUnlocked = true;
+  const rect = toolbar.getBoundingClientRect();
+  toolbar.style.left = rect.left + 'px';
+  toolbar.style.top = rect.top + 'px';
+  toolbar.style.transform = 'none';
+}
+
+function endDrag() {
+  isDraggingToolbar = false;
+  toolbar.classList.remove('dragging');
+}
+
+// Use Pointer Capture so all move/up events route to the toolbar
+// regardless of where the pointer is — no propagation issues
+toolbar.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  unlockToolbarPosition();
+  isDraggingToolbar = true;
+  dragOffsetX = e.clientX - toolbar.getBoundingClientRect().left;
+  dragOffsetY = e.clientY - toolbar.getBoundingClientRect().top;
+  toolbar.classList.add('dragging');
+  toolbar.setPointerCapture(e.pointerId);
+});
+
+toolbar.addEventListener('pointermove', (e) => {
+  if (!isDraggingToolbar) {
+    e.stopPropagation();
+    return;
+  }
+  toolbar.style.left = (e.clientX - dragOffsetX) + 'px';
+  toolbar.style.top = (e.clientY - dragOffsetY) + 'px';
+});
+
+toolbar.addEventListener('pointerup', () => {
+  if (isDraggingToolbar) endDrag();
+});
+
+toolbar.addEventListener('lostpointercapture', () => {
+  if (isDraggingToolbar) endDrag();
+});
+
+// ── Electron IPC listeners ──
+if (isElectron) {
+  window.electronAPI.onDisplayInfo(({ primary, windowBounds }) => {
+    // Position toolbar centered on the primary display
+    const offsetX = primary.x - windowBounds.x;
+    const centerX = offsetX + primary.width / 2;
+    const offsetY = primary.y - windowBounds.y;
+    toolbar.style.left = centerX + 'px';
+    toolbar.style.top = (offsetY + 16) + 'px';
+    toolbar.style.transform = 'translateX(-50%)';
+    // Also position the mode indicator and pill on the primary display
+    modeIndicator.style.left = centerX + 'px';
+    modeIndicator.style.top = (offsetY + 68) + 'px';
+    pill.style.left = centerX + 'px';
+    pill.style.top = (offsetY + 12) + 'px';
+  });
+
+  window.electronAPI.onModeChanged((drawing) => {
+    if (drawing) {
+      canvas.classList.remove('pass-through');
+      toolbar.classList.remove('hidden');
+      pill.classList.remove('visible');
+      modeIndicator.classList.add('visible');
+    } else {
+      canvas.classList.add('pass-through');
+      toolbar.classList.add('hidden');
+      pill.classList.add('visible');
+      modeIndicator.classList.remove('visible');
+      closeMenus();
+    }
+  });
+
+  window.electronAPI.onClear(() => {
+    clearAll();
+  });
+
+  window.electronAPI.onTakeScreenshot(() => {
+    takeScreenshot();
+  });
+
+  // Start in pass-through mode (Electron will send mode-changed on toggle)
+  canvas.classList.add('pass-through');
+  toolbar.classList.add('hidden');
+}
+
+</script>
+</body>
+</html>
