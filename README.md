@@ -18,6 +18,10 @@ Go to the [Releases](../../releases) page and download the installer for your pl
 
 Open the installer and follow the prompts. Launch **Annotation Overlay** from Applications or your Start Menu.
 
+## Update
+
+To update, download the latest installer from the [Releases](../../releases/latest) page and install it over the existing version.
+
 ## For Developers
 
 ```bash

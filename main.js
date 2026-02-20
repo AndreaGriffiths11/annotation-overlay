@@ -92,6 +92,7 @@ app.whenReady().then(() => {
   }
   screen.on('display-added', updateWindowBounds);
   screen.on('display-removed', updateWindowBounds);
+  screen.on('display-metrics-changed', updateWindowBounds);
 });
 
 function toggleDrawingMode() {

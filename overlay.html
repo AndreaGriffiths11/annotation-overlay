@@ -434,34 +434,10 @@ resize();
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const s of strokes) {
-    drawStroke(s);
+    drawStrokeOn(ctx, s);
   }
 }
 
-function drawStroke(s) {
-  ctx.save();
-  ctx.globalAlpha = s.alpha || 1;
-  ctx.strokeStyle = s.color;
-  ctx.lineWidth = s.width;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  if ((s.type === 'pen' || s.type === 'highlighter') && s.points.length > 1) {
-    ctx.beginPath();
-    ctx.moveTo(s.points[0][0], s.points[0][1]);
-    for (let i = 1; i < s.points.length; i++) {
-      ctx.lineTo(s.points[i][0], s.points[i][1]);
-    }
-    ctx.stroke();
-  } else if (s.type === 'rect') {
-    ctx.beginPath();
-    ctx.rect(s.x, s.y, s.w, s.h);
-    ctx.stroke();
-  } else if (s.type === 'arrow') {
-    drawArrow(ctx, s.x1, s.y1, s.x2, s.y2, s.color, s.width, s.alpha || 1);
-  }
-  ctx.restore();
-}
 
 function drawArrow(c, x1, y1, x2, y2, color, width, alpha) {
   const headLen = Math.max(width * 4, 16);
@@ -1049,7 +1025,7 @@ if (isElectron) {
     modeIndicator.style.left = centerX + 'px';
     modeIndicator.style.top = (offsetY + 68) + 'px';
     pill.style.left = centerX + 'px';
-    pill.style.top = (offsetY + 12) + 'px';
+    pill.style.top = (offsetY + primary.height / 2) + 'px';
   });
 
   window.electronAPI.onModeChanged((drawing) => {
