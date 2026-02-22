@@ -208,59 +208,63 @@
 
   /* Minimize pill */
   @keyframes pill-glow {
-    0%, 100% { box-shadow: 0 0 8px rgba(99, 102, 241, 0.4); }
-    50% { box-shadow: 0 0 18px rgba(99, 102, 241, 0.7); }
+    0%, 100% { box-shadow: 0 0 8px rgba(255, 107, 107, 0.3); }
+    50% { box-shadow: 0 0 16px rgba(255, 107, 107, 0.6); }
   }
 
   .minimize-pill {
     position: fixed;
-    top: 50%;
+    top: 38px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: 72px;
-    height: 72px;
-    background: none;
-    border: none;
-    border-radius: 18px;
+    transform: translateX(-50%);
+    height: 32px;
+    background: rgba(22, 22, 26, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     cursor: pointer;
     z-index: 1001;
     display: none;
-    transition: transform 0.15s, filter 0.15s;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px 0 10px;
+    transition: transform 0.15s, background 0.15s;
     animation: pill-glow 2s ease-in-out 3;
-    padding: 0;
-    overflow: hidden;
-  }
-
-  .minimize-pill img {
-    width: 100%;
-    height: 100%;
-    border-radius: 18px;
-    display: block;
-    pointer-events: none;
-  }
-
-  .minimize-pill:hover { transform: translate(-50%, -50%) scale(1.1); filter: brightness(1.15); }
-  .minimize-pill.visible { display: block; }
-
-  /* First-launch hint */
-  .pill-hint {
-    position: fixed;
-    top: calc(50% + 48px);
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.7);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    font-weight: 400;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  }
+
+  .minimize-pill .pill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff6b6b;
+    flex-shrink: 0;
+  }
+
+  .minimize-pill .pill-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.04em;
     white-space: nowrap;
     pointer-events: none;
-    z-index: 1001;
-    opacity: 0;
-    transition: opacity 0.4s ease;
   }
 
-  .pill-hint.visible { opacity: 1; }
+  .minimize-pill .pill-shortcut {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+  }
+
+  .minimize-pill:hover {
+    transform: translateX(-50%) scale(1.04);
+    background: rgba(30, 30, 36, 0.95);
+  }
+  .minimize-pill.visible { display: flex; }
+
+  /* First-launch hint - no longer needed, info is in the pill itself */
 
   /* Toast */
   .toast {
@@ -415,8 +419,11 @@
 <div class="mode-indicator" id="mode-indicator">DRAWING MODE</div>
 
 <!-- Minimized pill to restore toolbar -->
-<div class="minimize-pill" id="minimize-pill"><img src="assets/icon.png" alt="Annotate"></div>
-<div class="pill-hint" id="pill-hint">click to annotate · ⌘⇧D</div>
+<div class="minimize-pill" id="minimize-pill">
+  <span class="pill-dot"></span>
+  <span class="pill-label">Annotate</span>
+  <span class="pill-shortcut">⌘⇧D</span>
+</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -895,17 +902,7 @@ function drawStrokeOn(c, s) {
 // ── Toolbar: Minimize / Restore ──
 const toolbar = document.getElementById('toolbar');
 const pill = document.getElementById('minimize-pill');
-const pillHint = document.getElementById('pill-hint');
 const modeIndicator = document.getElementById('mode-indicator');
-
-// Show hint on first launch only
-const HINT_KEY = 'annotation-overlay-hint-shown';
-function showFirstLaunchHint() {
-  if (localStorage.getItem(HINT_KEY)) return;
-  localStorage.setItem(HINT_KEY, '1');
-  pillHint.classList.add('visible');
-  setTimeout(() => pillHint.classList.remove('visible'), 3000);
-}
 
 document.getElementById('btn-minimize').addEventListener('click', (e) => {
   e.stopPropagation();
@@ -1070,9 +1067,7 @@ if (isElectron) {
     modeIndicator.style.left = centerX + 'px';
     modeIndicator.style.top = (offsetY + 68) + 'px';
     pill.style.left = centerX + 'px';
-    pill.style.top = (offsetY + primary.height / 2) + 'px';
-    pillHint.style.left = centerX + 'px';
-    pillHint.style.top = (offsetY + primary.height / 2 + 48) + 'px';
+    pill.style.top = (offsetY + 38) + 'px';
   });
 
   window.electronAPI.onModeChanged((drawing) => {
@@ -1102,7 +1097,6 @@ if (isElectron) {
   canvas.classList.add('pass-through');
   toolbar.classList.add('hidden');
   pill.classList.add('visible');
-  showFirstLaunchHint();
 }
 
 </script>
