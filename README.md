@@ -13,8 +13,10 @@ Go to the [Releases](../../releases) page and download the installer for your pl
 | Platform | File | Size |
 |---|---|---|
 | macOS (Apple Silicon) | [Annotation.Overlay-1.2.1-arm64.dmg](../../releases/download/v1.2.1/Annotation.Overlay-1.2.1-arm64.dmg) | 133 MB |
+| Windows | [Annotation.Overlay.Setup.1.2.1.exe](../../releases/download/v1.2.1/Annotation.Overlay.Setup.1.2.1.exe) | 119 MB |
+| Linux | [Annotation.Overlay-1.2.1.AppImage](../../releases/download/v1.2.1/Annotation.Overlay-1.2.1.AppImage) | 122 MB |
 
-Open the installer and follow the prompts. Launch **Annotation Overlay** from Applications.
+Open the installer and follow the prompts. Launch **Annotation Overlay** from Applications or your Start Menu.
 
 ## macOS Installation
 

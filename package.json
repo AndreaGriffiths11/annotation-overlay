@@ -18,6 +18,14 @@
     },
     "mac": {
       "icon": "assets/icon.icns"
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": "nsis"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": "AppImage"
     }
   },
   "devDependencies": {
