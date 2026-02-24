@@ -3,6 +3,8 @@
 Draw over anything on your screen. Works during presentations, live demos, and screen sharing without switching windows or apps.
 
 ![Demo](assets/demo.gif)
+<img width="1978" height="1330" alt="Screenshot 2026-02-24 at 13 25 55" src="https://github.com/user-attachments/assets/95844208-1326-45d8-abf1-23f8c703766c" />
+
 
 ## Install
 
