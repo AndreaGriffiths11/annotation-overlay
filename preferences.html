@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>Customize Shortcuts</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font: 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1c1c20;
+      color: #eee;
+    }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    p { margin: 0 0 14px; color: #999; }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #2c2c32;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+      background: #2c2c32;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #38383f; }
+    .key { min-width: 150px; font-family: ui-monospace, Menlo, monospace; }
+    .key.capturing { border-color: #ff6b6b; color: #ff6b6b; }
+    #error { min-height: 18px; margin: 12px 0 8px; color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <h1>Customize Shortcuts</h1>
+  <p>Click a shortcut, then press the new key combination. Esc cancels.</p>
+  <div id="rows"></div>
+  <div id="error"></div>
+  <button id="reset">Reset to defaults</button>
+
+  <script>
+    const LABELS = {
+      toggle: 'Toggle drawing mode (global)',
+      pen: 'Pen',
+      rect: 'Rectangle',
+      arrow: 'Arrow',
+      highlighter: 'Highlighter',
+      eraser: 'Eraser',
+      toolbar: 'Hide/show toolbar',
+      clear: 'Clear all',
+      color: 'Color picker',
+      stroke: 'Stroke width',
+      undo: 'Undo',
+      screenshot: 'Screenshot',
+      quit: 'Quit',
+    };
+
+    // Same mapping as overlay.html: key event -> Electron accelerator string
+    function eventToAccelerator(e) {
+      let key;
+      if (e.code.startsWith('Key')) key = e.code.slice(3);
+      else if (e.code.startsWith('Digit')) key = e.code.slice(5);
+      else if (e.key === ' ') key = 'Space';
+      else if (e.key.startsWith('Arrow')) key = e.key.slice(5);
+      else if (e.key.length === 1) key = e.key.toUpperCase();
+      else key = e.key;
+      if (['Control', 'Meta', 'Shift', 'Alt'].includes(key)) return null;
+      const parts = [];
+      if (e.ctrlKey || e.metaKey) parts.push('CommandOrControl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      parts.push(key);
+      return parts.join('+');
+    }
+
+    const MOD = navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl';
+    const pretty = (accelerator) => accelerator.replace('CommandOrControl', MOD);
+
+    const rows = document.getElementById('rows');
+    const errorEl = document.getElementById('error');
+    let shortcuts = {};
+    let capturing = null; // { action, button }
+
+    function render() {
+      rows.innerHTML = '';
+      for (const [action, label] of Object.entries(LABELS)) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const name = document.createElement('span');
+        name.textContent = label;
+        const btn = document.createElement('button');
+        btn.className = 'key';
+        btn.textContent = pretty(shortcuts[action]);
+        btn.addEventListener('click', () => {
+          stopCapture();
+          capturing = { action, btn };
+          btn.textContent = 'Press keys…';
+          btn.classList.add('capturing');
+          errorEl.textContent = '';
+        });
+        row.append(name, btn);
+        rows.append(row);
+      }
+    }
+
+    function stopCapture() {
+      if (!capturing) return;
+      capturing = null;
+      render();
+    }
+
+    async function save(next) {
+      const result = await window.electronAPI.setShortcuts(next);
+      if (result.ok) {
+        shortcuts = result.shortcuts;
+        errorEl.textContent = '';
+      } else {
+        errorEl.textContent = result.error;
+      }
+      render();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!capturing) return;
+      e.preventDefault();
+      if (e.key === 'Escape') return stopCapture();
+      const accelerator = eventToAccelerator(e);
+      if (!accelerator) return; // modifier only, keep waiting
+      const { action } = capturing;
+      capturing = null;
+      save({ ...shortcuts, [action]: accelerator });
+    });
+
+    document.getElementById('reset').addEventListener('click', async () => {
+      capturing = null;
+      const result = await window.electronAPI.resetShortcuts();
+      if (result.ok) shortcuts = result.shortcuts;
+      else errorEl.textContent = result.error;
+      render();
+    });
+
+    window.electronAPI.getShortcuts().then((map) => {
+      shortcuts = map;
+      render();
+    });
+  </script>
+</body>
+</html>

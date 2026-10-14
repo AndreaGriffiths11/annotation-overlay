@@ -15,7 +15,74 @@ const fs = require('fs');
 
 let win;
 let tray;
+let prefsWin;
 let drawingMode = false;
+
+const DEFAULT_SHORTCUTS = {
+  toggle: 'CommandOrControl+Shift+D',
+  pen: 'P',
+  rect: 'R',
+  arrow: 'A',
+  highlighter: 'G',
+  eraser: 'E',
+  toolbar: 'H',
+  clear: 'X',
+  color: 'C',
+  stroke: 'W',
+  undo: 'CommandOrControl+Z',
+  screenshot: 'CommandOrControl+S',
+  quit: 'CommandOrControl+Q',
+};
+let shortcuts = { ...DEFAULT_SHORTCUTS };
+
+function shortcutsFile() {
+  return path.join(app.getPath('userData'), 'shortcuts.json');
+}
+
+function loadShortcuts() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(shortcutsFile(), 'utf8'));
+    for (const k of Object.keys(DEFAULT_SHORTCUTS)) {
+      if (typeof saved[k] === 'string' && saved[k]) shortcuts[k] = saved[k];
+    }
+  } catch {
+    // no saved file or invalid JSON: keep defaults
+  }
+}
+
+function registerToggleShortcut(accelerator) {
+  try {
+    return globalShortcut.register(accelerator, toggleDrawingMode);
+  } catch {
+    return false;
+  }
+}
+
+function applyShortcuts(next) {
+  const keys = Object.keys(DEFAULT_SHORTCUTS);
+  const clean = {};
+  for (const k of keys) {
+    if (typeof next[k] !== 'string' || !next[k]) return { ok: false, error: `Missing shortcut for ${k}` };
+    clean[k] = next[k];
+  }
+  if (new Set(Object.values(clean)).size !== keys.length) {
+    return { ok: false, error: 'Each action needs a different shortcut' };
+  }
+
+  if (clean.toggle !== shortcuts.toggle) {
+    globalShortcut.unregister(shortcuts.toggle);
+    if (!registerToggleShortcut(clean.toggle)) {
+      registerToggleShortcut(shortcuts.toggle);
+      return { ok: false, error: `Could not register ${clean.toggle} (already in use?)` };
+    }
+  }
+
+  shortcuts = clean;
+  fs.writeFileSync(shortcutsFile(), JSON.stringify(shortcuts, null, 2));
+  win.webContents.send('shortcuts-changed', shortcuts);
+  updateTrayMenu();
+  return { ok: true, shortcuts };
+}
 
 function getAllDisplaysBounds() {
   const displays = screen.getAllDisplays();
@@ -30,6 +97,7 @@ function getAllDisplaysBounds() {
 }
 
 app.whenReady().then(() => {
+  loadShortcuts();
   const bounds = getAllDisplaysBounds();
 
   win = new BrowserWindow({
@@ -75,10 +143,8 @@ app.whenReady().then(() => {
     win.showInactive();
   });
 
-  // Global shortcut: Cmd+Shift+D to toggle drawing mode
-  const registered = globalShortcut.register('CommandOrControl+Shift+D', () => {
-    toggleDrawingMode();
-  });
+  // Global shortcut to toggle drawing mode (default Cmd+Shift+D)
+  const registered = registerToggleShortcut(shortcuts.toggle);
   console.log('Global shortcut registered:', registered);
 
   createTray();
@@ -146,7 +212,7 @@ function updateTrayMenu() {
   const menu = Menu.buildFromTemplate([
     {
       label: drawingMode ? 'Exit Drawing Mode' : 'Enter Drawing Mode',
-      accelerator: 'CommandOrControl+Shift+D',
+      accelerator: shortcuts.toggle,
       click: () => toggleDrawingMode(),
     },
     { type: 'separator' },
@@ -156,19 +222,51 @@ function updateTrayMenu() {
     },
     {
       label: 'Save Screenshot',
-      accelerator: 'CommandOrControl+S',
       click: () => win.webContents.send('take-screenshot'),
     },
     { type: 'separator' },
     {
-      label: 'Quit',
-      accelerator: 'CommandOrControl+Q',
-      click: () => app.quit(),
+      label: 'Preferences',
+      submenu: [
+        { label: 'Customize Shortcuts…', click: () => openPreferences() },
+        { type: 'separator' },
+        { label: 'Quit', click: () => app.quit() },
+      ],
     },
   ]);
   tray.setToolTip('Annotation Overlay');
   tray.setContextMenu(menu);
 }
+
+function openPreferences() {
+  if (prefsWin && !prefsWin.isDestroyed()) {
+    prefsWin.show();
+    prefsWin.focus();
+    return;
+  }
+  prefsWin = new BrowserWindow({
+    width: 460,
+    height: 760,
+    title: 'Customize Shortcuts',
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  prefsWin.setMenu(null);
+  // The overlay sits at 'screen-saver' level, so match it to stay visible
+  prefsWin.setAlwaysOnTop(true, 'screen-saver');
+  prefsWin.loadFile('preferences.html');
+  prefsWin.on('closed', () => { prefsWin = null; });
+}
+
+ipcMain.handle('get-shortcuts', () => shortcuts);
+ipcMain.handle('set-shortcuts', (_e, next) => applyShortcuts(next));
+ipcMain.handle('reset-shortcuts', () => applyShortcuts(DEFAULT_SHORTCUTS));
 
 // IPC: dynamically toggle mouse event pass-through (used to make pill clickable)
 ipcMain.on('set-ignore-mouse-events', (_e, ignore, forward) => {

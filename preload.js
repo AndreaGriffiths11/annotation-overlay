@@ -8,6 +8,10 @@ function onChannel(channel, handler) {
 contextBridge.exposeInMainWorld('electronAPI', {
   onModeChanged: (callback) => onChannel('mode-changed', (_e, drawing) => callback(drawing)),
   onDisplayInfo: (callback) => onChannel('display-info', (_e, info) => callback(info)),
+  onShortcutsChanged: (callback) => onChannel('shortcuts-changed', (_e, map) => callback(map)),
+  getShortcuts: () => ipcRenderer.invoke('get-shortcuts'),
+  setShortcuts: (map) => ipcRenderer.invoke('set-shortcuts', map),
+  resetShortcuts: () => ipcRenderer.invoke('reset-shortcuts'),
   onClear: (callback) => onChannel('clear', () => callback()),
   onTakeScreenshot: (callback) => onChannel('take-screenshot', () => callback()),
   exitDrawingMode: () => ipcRenderer.send('exit-drawing-mode'),

@@ -1001,54 +1001,83 @@
     document.addEventListener('click', closeMenus);
 
     // ── Keyboard shortcuts ──
-    document.addEventListener('keydown', (e) => {
-      const key = e.key.toLowerCase();
+    // Configurable via tray menu > Preferences > Customize Shortcuts (map comes from main.js)
+    let shortcuts = {
+      toggle: 'CommandOrControl+Shift+D',
+      pen: 'P', rect: 'R', arrow: 'A', highlighter: 'G', eraser: 'E',
+      toolbar: 'H', clear: 'X', color: 'C', stroke: 'W',
+      undo: 'CommandOrControl+Z', screenshot: 'CommandOrControl+S', quit: 'CommandOrControl+Q',
+    };
 
-      if (key === 'p') setTool('pen');
-      else if (key === 'r') setTool('rect');
-      else if (key === 'a') setTool('arrow');
-      else if (key === 'g') setTool('highlighter');
-      else if (key === 'e') setTool('eraser');
-      else if (key === 'h') {
-        if (toolbar.classList.contains('hidden')) {
-          toolbar.classList.remove('hidden');
-          pill.classList.remove('visible');
-        } else {
-          toolbar.classList.add('hidden');
-          pill.classList.add('visible');
-        }
+    // key event -> Electron accelerator string (same mapping as preferences.html)
+    function eventToAccelerator(e) {
+      let key;
+      if (e.code.startsWith('Key')) key = e.code.slice(3);
+      else if (e.code.startsWith('Digit')) key = e.code.slice(5);
+      else if (e.key === ' ') key = 'Space';
+      else if (e.key.startsWith('Arrow')) key = e.key.slice(5);
+      else if (e.key.length === 1) key = e.key.toUpperCase();
+      else key = e.key;
+      const parts = [];
+      if (e.ctrlKey || e.metaKey) parts.push('CommandOrControl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      parts.push(key);
+      return parts.join('+');
+    }
+
+    function toggleToolbar() {
+      if (toolbar.classList.contains('hidden')) {
+        toolbar.classList.remove('hidden');
+        pill.classList.remove('visible');
+      } else {
+        toolbar.classList.add('hidden');
+        pill.classList.add('visible');
       }
-      else if (key === 'x') {
-        clearAll();
+    }
+
+    const actions = {
+      pen: () => setTool('pen'),
+      rect: () => setTool('rect'),
+      arrow: () => setTool('arrow'),
+      highlighter: () => setTool('highlighter'),
+      eraser: () => setTool('eraser'),
+      toolbar: toggleToolbar,
+      clear: clearAll,
+      undo: () => undoBtn.click(),
+      color: () => document.getElementById('btn-color').click(),
+      stroke: () => document.getElementById('btn-stroke').click(),
+      screenshot: takeScreenshot,
+      quit: () => { if (isElectron) window.electronAPI.quitApp(); },
+    };
+
+    const tooltipTargets = {
+      pen: ['tool-pen', 'Pen'], rect: ['tool-rect', 'Rectangle'], arrow: ['tool-arrow', 'Arrow'],
+      highlighter: ['tool-highlighter', 'Highlighter'], eraser: ['tool-eraser', 'Eraser'],
+      color: ['btn-color', 'Color'], stroke: ['btn-stroke', 'Stroke width'],
+      undo: ['btn-undo', 'Undo'], clear: ['btn-clear', 'Clear all'],
+      screenshot: ['btn-screenshot', 'Screenshot'], toolbar: ['btn-minimize', 'Hide toolbar'],
+      quit: ['btn-quit', 'Quit'],
+    };
+
+    function applyShortcuts(map) {
+      shortcuts = map;
+      for (const [action, [id, label]] of Object.entries(tooltipTargets)) {
+        const shown = map[action].replace('CommandOrControl', navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl');
+        document.getElementById(id).title = `${label} (${shown})`;
       }
-      else if (key === 'z' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        if (strokes.length > 0) {
-          strokes.pop();
-          redraw();
-          updateUndoBadge();
-        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (isElectron) window.electronAPI.exitDrawingMode();
+        return;
       }
-      else if (key === 'c' && !e.ctrlKey && !e.metaKey) {
-        document.getElementById('btn-color').click();
-      }
-      else if (key === 'w' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        document.getElementById('btn-stroke').click();
-      }
-      else if (key === 's' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        takeScreenshot();
-      }
-      else if (key === 'q' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        if (isElectron) window.electronAPI.quitApp();
-      }
-      else if (key === 'escape') {
-        if (isElectron) {
-          window.electronAPI.exitDrawingMode();
-        }
-      }
+      const accelerator = eventToAccelerator(e);
+      const action = Object.keys(actions).find((name) => shortcuts[name] === accelerator);
+      if (!action) return;
+      e.preventDefault();
+      actions[action]();
     });
 
     // ── Toast ──
@@ -1143,6 +1172,9 @@
           closeMenus();
         }
       });
+
+      window.electronAPI.getShortcuts().then(applyShortcuts);
+      window.electronAPI.onShortcutsChanged(applyShortcuts);
 
       window.electronAPI.onClear(() => {
         clearAll();

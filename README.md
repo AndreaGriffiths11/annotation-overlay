@@ -64,6 +64,8 @@ You can also toggle drawing mode with `Cmd+Shift+D` on Mac or `Ctrl+Shift+D` on 
 
 ## Shortcuts
 
+All shortcuts below are the defaults. To change them, click the menu bar icon, then **Preferences → Customize Shortcuts…**, click an action and press the new keys. This includes the shortcut that toggles drawing mode. Your choices are saved between launches.
+
 | Action | Mac | Windows / Linux |
 |---|---|---|
 | Toggle drawing mode | `Cmd+Shift+D` | `Ctrl+Shift+D` |
